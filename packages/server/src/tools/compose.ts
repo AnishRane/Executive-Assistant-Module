@@ -23,6 +23,9 @@ import { invoke } from "@boringos/agent";
 import { and, asc, desc, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
 import { snapshots } from "../schema/snapshots.js";
 import { meetings } from "../schema/meetings.js";
+import { oooWindows } from "../schema/ooo_windows.js";
+import { tripLegs } from "../schema/trip_legs.js";
+import { timelineItems } from "../schema/timeline_items.js";
 import { computeStateHash } from "../services/compose_hash.js";
 import { computeDaySignal } from "../services/day_signal.js";
 import { trace } from "../services/trace.js";
@@ -363,6 +366,28 @@ export function createComposeTools(deps: EaDeps): Tool[] {
             ),
           )
           .orderBy(asc(meetings.startsAt));
+        // v0.1.5 — diagnostic: when only a partial set comes back vs
+        // what the user has on the calendar, we want to see WHY (kind
+        // filter? hidden FK? something else?). Log every candidate +
+        // each one's eligibility flag to /tmp/ea-trace.log.
+        const allTodayWindow = await deps.db
+          .select({ id: meetings.id, title: meetings.title, startsAt: meetings.startsAt, brief: meetings.brief, kind: meetings.kind })
+          .from(meetings)
+          .where(
+            and(
+              eq(meetings.tenantId, ctx.tenantId),
+              lte(meetings.startsAt, windowEnd),
+            ),
+          )
+          .orderBy(asc(meetings.startsAt));
+        const summary = allTodayWindow.map((m) => {
+          const reasons: string[] = [];
+          if (m.startsAt < now) reasons.push("past");
+          if (m.brief != null) reasons.push("has_brief");
+          const passed = reasons.length === 0;
+          return `${m.id.slice(0, 8)} "${m.title}" kind=${m.kind ?? "untagged"} ${passed ? "MATCH" : `skipped(${reasons.join(",")})`}`;
+        }).join(" | ");
+        phase(`prep_briefs CANDIDATES (days=${days}, now=${now.toISOString()}, windowEnd=${windowEnd.toISOString()}): ${summary || "<none>"}`);
       }
 
       phase(
@@ -822,5 +847,201 @@ There are ${untaggedCount} untagged items right now.`;
     },
   };
 
-  return [maybeCreateTask, prepareMeetingBriefs, daySignal, classifyPending, dayContext, writeMeetingBrief];
+  // v0.1.5 — atomic finalize for the day-composer agent.
+  // Bundles snapshots.create + timeline_items.create_batch +
+  // comments.post + tasks.patch(done) into one server call.
+  //
+  // The day-composer agent only needs to:
+  //   1. Call compose.day_context (read everything)
+  //   2. Compose narrative prose (no tool)
+  //   3. Call compose.write_day_brief({ narrative })
+  //
+  // Server queries today's meetings/ooo/trip_legs and builds the
+  // timeline items list internally. The agent doesn't have to thread
+  // UUIDs from one call to the next (the failure we kept seeing —
+  // agent passed "null" / "garage-visit" / etc. instead of real
+  // UUIDs from prior responses).
+  const writeDayBrief: Tool = {
+    name: "compose.write_day_brief",
+    description:
+      "Atomically finalize today's Day Brief. Save the narrative as a snapshot, write timeline items for every meeting/ooo/trip leg on today, post a completion comment, and mark the agent-morning-compose task done. The agent only passes { narrative, completionComment? } — the server handles all internal UUID threading, task lookup, and finalization. Use this as the LAST step of the day-composer agent's procedure instead of calling snapshots.create + timeline_items.create_batch + framework.comments.post + framework.tasks.patch separately.",
+    inputs: z.object({
+      narrative: z.string().min(1),
+      completionComment: z.string().optional(),
+      elevatedRefIds: z.array(z.string().uuid()).optional(),
+    }),
+    async handler(
+      input: {
+        narrative: string;
+        completionComment?: string;
+        elevatedRefIds?: string[];
+      },
+      ctx: ToolContext,
+    ): Promise<ToolResult> {
+      const forDate = new Date().toISOString().slice(0, 10);
+      const dayStart = new Date(`${forDate}T00:00:00.000Z`);
+      const dayEnd = new Date(`${forDate}T23:59:59.999Z`);
+      const elevated = new Set(input.elevatedRefIds ?? []);
+
+      // 1. Save the snapshot.
+      const stateHash = await computeStateHash(deps.db, ctx.tenantId, forDate).catch(
+        () => null,
+      );
+      const [snapshot] = await deps.db
+        .insert(snapshots)
+        .values({
+          tenantId: ctx.tenantId,
+          snapshotDate: forDate,
+          narrativeBrief: input.narrative,
+          stateHash: stateHash ?? "",
+          status: "composed",
+        })
+        .returning();
+      if (!snapshot?.id) {
+        return {
+          ok: false,
+          error: {
+            code: "internal",
+            message: "Failed to save snapshot row.",
+            retryable: true,
+          },
+        };
+      }
+
+      // 2. Build the timeline items list by querying today's domain
+      //    rows. The agent doesn't need to thread UUIDs.
+      const todayMeetings = await deps.db
+        .select({ id: meetings.id, startsAt: meetings.startsAt, endsAt: meetings.endsAt })
+        .from(meetings)
+        .where(
+          and(
+            eq(meetings.tenantId, ctx.tenantId),
+            gte(meetings.startsAt, dayStart),
+            lte(meetings.startsAt, dayEnd),
+          ),
+        )
+        .orderBy(asc(meetings.startsAt));
+
+      const todayOoo = await deps.db
+        .select({ id: oooWindows.id, startsAt: oooWindows.startsAt, endsAt: oooWindows.endsAt })
+        .from(oooWindows)
+        .where(
+          and(
+            eq(oooWindows.tenantId, ctx.tenantId),
+            gte(oooWindows.startsAt, dayStart),
+            lte(oooWindows.startsAt, dayEnd),
+          ),
+        );
+
+      const todayTripLegs = await deps.db
+        .select({ id: tripLegs.id, startsAt: tripLegs.startsAt, endsAt: tripLegs.endsAt })
+        .from(tripLegs)
+        .where(
+          and(
+            gte(tripLegs.startsAt, dayStart),
+            lte(tripLegs.startsAt, dayEnd),
+          ),
+        );
+
+      type Row = { id: string; startsAt: Date; endsAt: Date | null };
+      const items: Array<{
+        snapshotId: string;
+        kind: "meeting" | "trip_leg" | "ooo";
+        refId: string;
+        startsAt: Date;
+        endsAt: Date | null;
+        elevated: boolean;
+        elevationReason: null;
+        sortOrder: number;
+      }> = [];
+
+      function pushItem(row: Row, kind: "meeting" | "trip_leg" | "ooo", order: number) {
+        items.push({
+          snapshotId: snapshot.id,
+          kind,
+          refId: row.id,
+          startsAt: row.startsAt,
+          endsAt: row.endsAt ?? null,
+          elevated: elevated.has(row.id),
+          elevationReason: null,
+          sortOrder: order,
+        });
+      }
+
+      let order = 0;
+      for (const m of todayMeetings as Row[]) pushItem(m, "meeting", order++);
+      for (const o of todayOoo as Row[]) pushItem(o, "ooo", order++);
+      for (const t of todayTripLegs as Row[]) pushItem(t, "trip_leg", order++);
+
+      if (items.length > 0) {
+        await deps.db.insert(timelineItems).values(items);
+      }
+
+      // 3. Find the agent-morning-compose task for today and finalize.
+      //    originId pattern set by maybe_create_task is `${forDate}`
+      //    for first-compose and `${forDate}:${hash8}` for refresh.
+      const taskRows = (await deps.db.execute(sql`
+        SELECT id FROM tasks
+        WHERE tenant_id = ${ctx.tenantId}
+          AND origin_kind IN ('agent-morning-compose', 'agent-compose-refresh')
+          AND status != 'done'
+          AND (origin_id = ${forDate} OR origin_id LIKE ${`${forDate}:%`})
+        ORDER BY created_at DESC
+        LIMIT 1
+      `)) as unknown as Array<{ id: string }>;
+      const taskId = taskRows[0]?.id ?? null;
+
+      if (taskId && deps.toolRegistry) {
+        const invokeDeps = {
+          registry: deps.toolRegistry,
+          db: deps.db as unknown as never,
+        };
+        const ctxInt: ToolContext = { ...ctx, invokedBy: "internal" };
+        try {
+          await invoke<unknown, unknown>(
+            invokeDeps,
+            "framework.comments.post",
+            {
+              taskId,
+              body:
+                input.completionComment ??
+                `Composed. ${items.length} timeline items, ${input.narrative.length} chars of narrative.`,
+            },
+            ctxInt,
+          );
+        } catch (err) {
+          phase(
+            `write_day_brief: comment failed (non-fatal): ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+        try {
+          await invoke<unknown, unknown>(
+            invokeDeps,
+            "framework.tasks.patch",
+            { taskId, status: "done" },
+            ctxInt,
+          );
+        } catch (err) {
+          phase(
+            `write_day_brief: tasks.patch failed (non-fatal): ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+      }
+
+      return {
+        ok: true,
+        result: {
+          data: {
+            saved: true,
+            snapshotId: snapshot.id,
+            timelineItemCount: items.length,
+            taskFinalized: !!taskId,
+            taskId,
+          },
+        },
+      };
+    },
+  };
+
+  return [maybeCreateTask, prepareMeetingBriefs, daySignal, classifyPending, dayContext, writeMeetingBrief, writeDayBrief];
 }
