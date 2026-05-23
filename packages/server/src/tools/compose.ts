@@ -351,17 +351,29 @@ export function createComposeTools(deps: EaDeps): Tool[] {
             ),
           );
       } else {
+        // v0.1.6 — filter expanded. The prior `startsAt >= now` excluded
+        // today's already-past and in-progress meetings, which is the
+        // wrong product behavior. Users want briefs for ALL of today's
+        // meetings (past, in-progress, future) so they can reference
+        // them throughout the day, plus future meetings within `days`.
+        // New filter: today (in tenant local date) OR future within window.
         const days = input.days ?? 7;
         const now = new Date();
         const windowEnd = new Date(now.getTime() + days * 86_400_000);
+        const todayStart = new Date(
+          `${now.toISOString().slice(0, 10)}T00:00:00.000Z`,
+        );
+        const todayEnd = new Date(
+          `${now.toISOString().slice(0, 10)}T23:59:59.999Z`,
+        );
         targets = await deps.db
           .select({ id: meetings.id, title: meetings.title, startsAt: meetings.startsAt })
           .from(meetings)
           .where(
             and(
               eq(meetings.tenantId, ctx.tenantId),
-              gte(meetings.startsAt, now),
-              lte(meetings.startsAt, windowEnd),
+              // include if (any of today) OR (future within window)
+              sql`(${meetings.startsAt} BETWEEN ${todayStart} AND ${todayEnd}) OR (${meetings.startsAt} > ${now} AND ${meetings.startsAt} <= ${windowEnd})`,
               isNull(meetings.brief),
             ),
           )

@@ -1,7 +1,7 @@
 {
   "id": "executive-assistant",
   "name": "Executive Assistant",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "A daily dossier composed from calendar and email. Watches for travel, meetings, and the context that surrounds them.",
   "kind": "module",
   "entry": "./index.mjs",
