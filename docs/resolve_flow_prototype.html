@@ -1,0 +1,806 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>EA — Resolve flow (Option D)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --paper: #F8F6F1;
+    --paper-warm: #F1ECE3;
+    --surface: #FFFFFF;
+    --border: #E6E1D6;
+    --border-subtle: #EFEAE0;
+    --ink: #0B1220;
+    --ink-2: #2A3447;
+    --muted: #5C6478;
+    --muted-strong: #3D4456;
+    --accent: #B45309;
+    --accent-light: #D97706;
+    --accent-tint: rgba(180, 83, 9, 0.10);
+    --green: #4F6B57;
+    --green-soft: #EAEFE7;
+    --red: #F43F5E;
+    --amber-soft: #FBEEE2;
+    --rose-soft: #F4DCD7;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    color: var(--ink);
+    background: var(--paper);
+    background-image: radial-gradient(rgba(11, 18, 32, 0.045) 1px, transparent 1px);
+    background-size: 24px 24px;
+    font-size: 14px;
+    line-height: 1.55;
+  }
+  .mono { font-family: "JetBrains Mono", ui-monospace, monospace; }
+  .label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .micro {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* === Control bar ======================================== */
+  .controls {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: rgba(248, 246, 241, 0.92);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 22px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .controls .title { font-weight: 600; font-size: 13px; }
+  .controls .title small { display: block; font-weight: 400; font-size: 11px; color: var(--muted); }
+  .controls .tabs { display: flex; gap: 4px; }
+  .tab {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--muted-strong);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 150ms;
+  }
+  .tab:hover { background: var(--paper-warm); color: var(--ink); }
+  .tab.active { background: var(--accent); color: white; border-color: var(--accent); }
+  .tab .opt-letter { font-weight: 700; margin-right: 6px; opacity: 0.85; }
+
+  /* === Layout chrome ====================================== */
+  .app { display: grid; grid-template-columns: 248px 1fr; min-height: calc(100vh - 60px); }
+  aside.sidebar {
+    background: var(--paper);
+    border-right: 1px solid var(--border);
+    padding: 16px 8px;
+  }
+  .brand { padding: 8px 12px; font-weight: 700; font-size: 13px; letter-spacing: 0.04em; }
+  .brand .tenant { font-weight: 400; font-size: 11px; color: var(--muted); margin-top: 2px; letter-spacing: 0; }
+  .nav-group { display: flex; flex-direction: column; gap: 2px; margin-top: 12px; }
+  .nav-group .group-heading {
+    padding: 8px 12px 4px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .nav-link {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    color: var(--muted-strong);
+    text-decoration: none;
+    font-size: 14px;
+  }
+  .nav-link:hover { background: var(--paper-warm); color: var(--ink); }
+  .nav-link.active {
+    background: var(--paper-warm); color: var(--ink); font-weight: 500;
+    border-left: 2px solid var(--accent); padding-left: 10px;
+  }
+  .nav-link .glyph { width: 18px; text-align: center; color: var(--muted); font-size: 14px; }
+
+  main { overflow: auto; }
+  .screen-header { padding: 32px 32px 16px; border-bottom: 1px solid var(--border-subtle); }
+  .screen-header h1 { margin: 0 0 4px; font-size: 24px; font-weight: 600; letter-spacing: -0.005em; }
+  .screen-header .date { color: var(--muted); font-size: 13.5px; }
+  .screen-body { padding: 24px 32px 80px; max-width: 1100px; }
+
+  /* === Compact day-brief reminder ========================= */
+  .day-brief {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin-bottom: 14px;
+  }
+  .day-brief p { margin: 0; font-size: 14px; color: var(--ink-2); line-height: 1.55; }
+
+  /* === Attention strip (collapsed/idle state) ============= */
+  .attn-strip {
+    display: flex; align-items: center; gap: 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    font-size: 14px;
+  }
+  .attn-strip .glyph { color: var(--accent); font-size: 14px; }
+  .attn-strip strong { color: var(--ink); font-weight: 600; }
+  .attn-strip a {
+    margin-left: auto;
+    font-size: 13px;
+    color: var(--accent);
+    font-weight: 500;
+    text-decoration: none;
+    border: 1px solid var(--accent);
+    padding: 4px 10px;
+    border-radius: 5px;
+    background: var(--accent-tint);
+  }
+  .attn-strip a:hover { background: var(--accent); color: white; }
+
+  /* === Expanded attention panel =========================== */
+  .attn-panel {
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 18px;
+  }
+  .attn-panel-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .attn-panel-head h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .attn-panel-head .progress {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .attn-panel-head .close {
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0 4px;
+  }
+  .attn-panel-head .close:hover { color: var(--ink); }
+
+  /* === Issue row ========================================== */
+  .issue {
+    padding: 14px 0;
+    border-top: 1px solid var(--border-subtle);
+    display: grid;
+    grid-template-columns: 24px 1fr auto;
+    gap: 14px;
+    align-items: start;
+  }
+  .issue:first-of-type { border-top: 0; padding-top: 4px; }
+  .issue .icon {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .issue.delta .icon { background: var(--amber-soft); color: var(--accent); }
+  .issue.conflict .icon { background: var(--rose-soft); color: var(--red); }
+  .issue.resolved .icon { background: var(--green-soft); color: var(--green); }
+  .issue .body .row1 { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 2px; }
+  .issue .body .kind {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .issue.delta .kind { color: var(--accent); }
+  .issue.conflict .kind { color: var(--red); }
+  .issue.resolved .kind { color: var(--green); }
+  .issue .body .when {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .issue .body .what {
+    font-size: 14.5px;
+    color: var(--ink);
+    margin: 2px 0 4px;
+  }
+  .issue.resolved .body .what { color: var(--muted-strong); text-decoration: line-through; text-decoration-color: var(--muted); }
+  .issue .body .why {
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .issue .actions { display: flex; gap: 6px; align-items: center; }
+
+  /* === Buttons ============================================ */
+  .btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 500;
+    padding: 5px 11px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 150ms;
+    line-height: 1.4;
+  }
+  .btn:hover { background: var(--paper-warm); }
+  .btn.primary {
+    background: var(--accent); color: white; border-color: var(--accent);
+  }
+  .btn.primary:hover { background: var(--accent-light); border-color: var(--accent-light); }
+  .btn.subtle { background: transparent; border-color: transparent; color: var(--muted); }
+  .btn.subtle:hover { background: var(--paper-warm); color: var(--ink); }
+  .btn.danger { color: var(--red); }
+  .btn.success {
+    background: var(--green-soft); border-color: var(--green); color: var(--green);
+  }
+
+  /* === Conflict pick options ============================== */
+  .pick-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 10px;
+  }
+  .pick-card {
+    background: var(--paper);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    cursor: pointer;
+    transition: all 150ms;
+  }
+  .pick-card:hover { background: var(--paper-warm); border-color: var(--accent); }
+  .pick-card.chosen {
+    border-color: var(--accent);
+    background: var(--accent-tint);
+  }
+  .pick-card .who {
+    font-size: 13.5px;
+    color: var(--ink);
+    font-weight: 500;
+  }
+  .pick-card .meta {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+  .pick-card .pick-label {
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+
+  /* === Reschedule drawer for conflict ===================== */
+  .draft-box {
+    margin-top: 12px;
+    padding: 12px 14px;
+    background: var(--paper);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+  }
+  .draft-box .draft-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .draft-box .draft-body {
+    font-size: 13.5px;
+    color: var(--ink-2);
+    line-height: 1.55;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+  }
+  .draft-box .draft-meta {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+  .draft-box .draft-actions {
+    display: flex; gap: 8px; margin-top: 10px;
+  }
+
+  /* === All-clear success state ============================ */
+  .all-clear {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--green-soft);
+    border: 1px solid var(--green);
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin-bottom: 16px;
+    font-size: 13.5px;
+    color: var(--green);
+  }
+  .all-clear .glyph { font-size: 14px; }
+  .all-clear .note { color: var(--muted); font-size: 12px; margin-left: auto; }
+
+  /* === Mini Klein + Standup card preview (for context) === */
+  .now-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin-bottom: 12px;
+    display: grid;
+    grid-template-columns: 60px 1fr;
+    gap: 14px;
+    align-items: start;
+  }
+  .now-card.highlight { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-tint); }
+  .now-card .focus-time {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--ink);
+  }
+  .now-card .focus-time .when {
+    display: block;
+    font-family: "Inter", sans-serif;
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+  .now-card .title { margin: 2px 0 2px; font-weight: 500; font-size: 14.5px; }
+  .now-card .sub { font-size: 12.5px; color: var(--muted); }
+  .now-card .inline-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    padding: 1px 6px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    vertical-align: 2px;
+    margin-left: 6px;
+  }
+  .inline-badge.delta { background: var(--amber-soft); color: var(--accent); border: 1px solid var(--accent); }
+  .inline-badge.conflict { background: var(--rose-soft); color: var(--red); border: 1px solid var(--red); }
+
+  /* === Trade-off ========================================== */
+  .tradeoff {
+    margin-top: 28px;
+    padding: 14px 18px;
+    background: var(--paper-warm);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--muted-strong);
+    line-height: 1.6;
+  }
+  .tradeoff strong { color: var(--ink); }
+  .tradeoff .heading {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .prototype { display: none; }
+  .prototype.active { display: block; }
+</style>
+</head>
+<body>
+
+<div class="controls">
+  <div class="title">
+    EA — Resolve flow for Option D
+    <small>Click "Resolve →" on the attention strip · what happens next</small>
+  </div>
+  <div class="tabs">
+    <button class="tab active" data-target="state-1"><span class="opt-letter">1</span>Idle strip</button>
+    <button class="tab" data-target="state-2"><span class="opt-letter">2</span>Expanded panel</button>
+    <button class="tab" data-target="state-3"><span class="opt-letter">3</span>Mid-resolution</button>
+    <button class="tab" data-target="state-4"><span class="opt-letter">4</span>Conflict + draft</button>
+    <button class="tab" data-target="state-5"><span class="opt-letter">5</span>All clear</button>
+  </div>
+</div>
+
+<!-- ────────── State 1 — Idle strip ────────── -->
+<div class="prototype active" id="state-1">
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">Executive Assistant<div class="tenant">david@osnhq.com</div></div>
+      <div class="nav-group">
+        <div class="group-heading">Surface</div>
+        <a class="nav-link active" href="#"><span class="glyph">◐</span>Today</a>
+        <a class="nav-link" href="#"><span class="glyph">◷</span>History</a>
+        <a class="nav-link" href="#"><span class="glyph">◇</span>Memory</a>
+      </div>
+    </aside>
+    <main>
+      <div class="screen-header">
+        <h1>This week</h1>
+        <div class="date">Thursday, 15 May 2026 · Mumbai</div>
+      </div>
+      <div class="screen-body">
+        <div class="day-brief">
+          <p>Klein moved to 09:30 — now overlaps with the standup. After the morning bunch, things ease until Board at 14:00.</p>
+        </div>
+
+        <div class="attn-strip">
+          <span class="glyph">👁</span>
+          <span><strong>2 things to look at</strong> · 1 change (Klein moved earlier) · 1 conflict (Klein × Standup)</span>
+          <a href="#">Resolve →</a>
+        </div>
+
+        <div class="now-card highlight">
+          <div class="focus-time">09:30<span class="when">Now · 12 min</span></div>
+          <div>
+            <div class="title">Klein 1:1 — Acme renewal pulse
+              <span class="inline-badge delta">↑ Moved from 10:30</span>
+              <span class="inline-badge conflict">⚠ Overlaps Standup</span>
+            </div>
+            <div class="sub">Mark Klein (Acme) · Google Meet · 30 min</div>
+          </div>
+        </div>
+
+        <div class="tradeoff">
+          <div class="heading">State 1 · Idle (collapsed strip)</div>
+          David sees the count, knows there's work to do, can click <strong>"Resolve →"</strong> to expand the panel. Inline badges on the card itself give the same information at item-level for users who scroll instead of click. Strip is sticky-ish in feel — it'll stay until everything is acknowledged.
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ────────── State 2 — Expanded panel (both issues visible) ────────── -->
+<div class="prototype" id="state-2">
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">Executive Assistant<div class="tenant">david@osnhq.com</div></div>
+      <div class="nav-group">
+        <div class="group-heading">Surface</div>
+        <a class="nav-link active" href="#"><span class="glyph">◐</span>Today</a>
+        <a class="nav-link" href="#"><span class="glyph">◷</span>History</a>
+        <a class="nav-link" href="#"><span class="glyph">◇</span>Memory</a>
+      </div>
+    </aside>
+    <main>
+      <div class="screen-header">
+        <h1>This week</h1>
+        <div class="date">Thursday, 15 May 2026 · Mumbai</div>
+      </div>
+      <div class="screen-body">
+        <div class="day-brief">
+          <p>Klein moved to 09:30 — now overlaps with the standup. After the morning bunch, things ease until Board at 14:00.</p>
+        </div>
+
+        <!-- The strip has expanded into a full panel inline -->
+        <div class="attn-panel">
+          <div class="attn-panel-head">
+            <h3>2 things to look at</h3>
+            <span class="progress">0 of 2 resolved</span>
+            <button class="close" title="Collapse">×</button>
+          </div>
+
+          <div class="issue delta">
+            <div class="icon">↑</div>
+            <div class="body">
+              <div class="row1">
+                <span class="kind">Change</span>
+                <span class="when">09:30</span>
+              </div>
+              <div class="what">Klein 1:1 moved up by 1h — was 10:30, now 09:30</div>
+              <div class="why">Klein cleared his afternoon. Same Google Meet link.</div>
+            </div>
+            <div class="actions">
+              <button class="btn primary">Got it</button>
+              <button class="btn subtle">Open</button>
+            </div>
+          </div>
+
+          <div class="issue conflict">
+            <div class="icon">⚠</div>
+            <div class="body">
+              <div class="row1">
+                <span class="kind">Conflict</span>
+                <span class="when">09:30 – 10:00</span>
+              </div>
+              <div class="what">Klein 1:1 overlaps Standup (30 min)</div>
+              <div class="why">Klein moved earlier, into your standing 09:30 standup slot.</div>
+            </div>
+            <div class="actions">
+              <button class="btn">Resolve →</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="now-card highlight">
+          <div class="focus-time">09:30<span class="when">Now · 12 min</span></div>
+          <div>
+            <div class="title">Klein 1:1
+              <span class="inline-badge delta">↑ Moved from 10:30</span>
+              <span class="inline-badge conflict">⚠ Overlaps Standup</span>
+            </div>
+            <div class="sub">Mark Klein (Acme) · Google Meet · 30 min</div>
+          </div>
+        </div>
+
+        <div class="tradeoff">
+          <div class="heading">State 2 · Expanded panel</div>
+          <strong>What happened:</strong> the thin strip animated up into a panel right where it was. Both issues are visible as rows, each with its own action affordance. Delta-style issues need only a one-click "Got it" acknowledgement. Conflicts need a "Resolve →" because they require a decision. Progress counter (<em>"0 of 2 resolved"</em>) tracks completion.
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ────────── State 3 — Delta acknowledged, conflict still open ────────── -->
+<div class="prototype" id="state-3">
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">Executive Assistant<div class="tenant">david@osnhq.com</div></div>
+      <div class="nav-group">
+        <div class="group-heading">Surface</div>
+        <a class="nav-link active" href="#"><span class="glyph">◐</span>Today</a>
+        <a class="nav-link" href="#"><span class="glyph">◷</span>History</a>
+        <a class="nav-link" href="#"><span class="glyph">◇</span>Memory</a>
+      </div>
+    </aside>
+    <main>
+      <div class="screen-header">
+        <h1>This week</h1>
+        <div class="date">Thursday, 15 May 2026 · Mumbai</div>
+      </div>
+      <div class="screen-body">
+        <div class="day-brief">
+          <p>Klein moved to 09:30 — now overlaps with the standup. After the morning bunch, things ease until Board at 14:00.</p>
+        </div>
+
+        <div class="attn-panel">
+          <div class="attn-panel-head">
+            <h3>1 thing left to look at</h3>
+            <span class="progress">1 of 2 resolved</span>
+            <button class="close" title="Collapse">×</button>
+          </div>
+
+          <div class="issue resolved">
+            <div class="icon">✓</div>
+            <div class="body">
+              <div class="row1">
+                <span class="kind">Acknowledged</span>
+                <span class="when">just now</span>
+              </div>
+              <div class="what">Klein 1:1 moved up by 1h</div>
+            </div>
+            <div class="actions">
+              <button class="btn subtle">Undo</button>
+            </div>
+          </div>
+
+          <div class="issue conflict">
+            <div class="icon">⚠</div>
+            <div class="body">
+              <div class="row1">
+                <span class="kind">Conflict</span>
+                <span class="when">09:30 – 10:00</span>
+              </div>
+              <div class="what">Klein 1:1 overlaps Standup (30 min)</div>
+              <div class="why">Klein moved earlier, into your standing 09:30 standup slot.</div>
+            </div>
+            <div class="actions">
+              <button class="btn primary">Resolve →</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="now-card highlight">
+          <div class="focus-time">09:30<span class="when">Now · 12 min</span></div>
+          <div>
+            <div class="title">Klein 1:1
+              <span class="inline-badge conflict">⚠ Overlaps Standup</span>
+            </div>
+            <div class="sub">Mark Klein (Acme) · Google Meet · 30 min</div>
+          </div>
+        </div>
+
+        <div class="tradeoff">
+          <div class="heading">State 3 · Mid-resolution</div>
+          <strong>What happened:</strong> David clicked "Got it" on the delta. The row didn't disappear — it transformed: green check icon, strike-through text, "Acknowledged just now" + an <strong>Undo</strong> in case it was a misclick. The delta badge on the Klein card below also disappeared in sync. Conflict still open; progress shows "1 of 2".
+          <br/><br/>
+          <strong>Why don't we just delete the row?</strong> Hiding it immediately makes mid-resolution feel jumpy, and the Undo affordance needs somewhere to live. The row collapses to a thinner height visually so the resolved item doesn't dominate.
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ────────── State 4 — Conflict resolution + optional draft ────────── -->
+<div class="prototype" id="state-4">
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">Executive Assistant<div class="tenant">david@osnhq.com</div></div>
+      <div class="nav-group">
+        <div class="group-heading">Surface</div>
+        <a class="nav-link active" href="#"><span class="glyph">◐</span>Today</a>
+        <a class="nav-link" href="#"><span class="glyph">◷</span>History</a>
+        <a class="nav-link" href="#"><span class="glyph">◇</span>Memory</a>
+      </div>
+    </aside>
+    <main>
+      <div class="screen-header">
+        <h1>This week</h1>
+        <div class="date">Thursday, 15 May 2026 · Mumbai</div>
+      </div>
+      <div class="screen-body">
+        <div class="day-brief">
+          <p>Klein moved to 09:30 — now overlaps with the standup.</p>
+        </div>
+
+        <div class="attn-panel">
+          <div class="attn-panel-head">
+            <h3>Resolve: Klein 1:1 × Standup overlap</h3>
+            <span class="progress">1 of 2 resolved · resolving 2/2</span>
+            <button class="close" title="Cancel">×</button>
+          </div>
+
+          <div class="issue conflict">
+            <div class="icon">⚠</div>
+            <div class="body" style="grid-column: 2 / 4">
+              <div class="row1">
+                <span class="kind">Conflict · which to keep?</span>
+                <span class="when">09:30 – 10:00 · 30 min overlap</span>
+              </div>
+              <div class="what" style="margin-bottom: 10px">Pick the one you'll attend live. EA can draft a quick message to whichever side is bumped.</div>
+
+              <div class="pick-row">
+                <div class="pick-card chosen">
+                  <div class="pick-label">Keep this one</div>
+                  <div class="who">Klein 1:1 — Acme renewal pulse</div>
+                  <div class="meta">Mark Klein · 30 min · Google Meet</div>
+                </div>
+                <div class="pick-card">
+                  <div class="pick-label">Keep this one</div>
+                  <div class="who">Standup (weekly)</div>
+                  <div class="meta">Anish + 4 others · 30 min · Conf room A</div>
+                </div>
+              </div>
+
+              <div class="draft-box">
+                <div class="draft-label">Draft message to skip · Standup</div>
+                <div class="draft-body">
+                  Quick note — I have to step out of standup this morning. Klein needed to bring our 1:1 forward to the same slot, and his renewal pulse can't slip. I'll catch the recap from Anish; please flag anything blocking and I'll respond in-thread.
+                </div>
+                <div class="draft-meta">
+                  To: Anish (organizer) · Sent via Gmail reply on the calendar invite thread · <em>v0.2 feature — currently saved as a draft you can review and send</em>
+                </div>
+                <div class="draft-actions">
+                  <button class="btn primary">Apply choice + save draft</button>
+                  <button class="btn">Apply choice only</button>
+                  <button class="btn subtle">Cancel</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tradeoff">
+          <div class="heading">State 4 · Conflict resolution focus</div>
+          <strong>What happened:</strong> David clicked "Resolve →" on the conflict row. The row expanded vertically (the resolved delta row collapsed away to make space). Two side-by-side <strong>pick cards</strong> let him choose which meeting to keep. The chosen one gets the amber border + tint.
+          <br/><br/>
+          Below: an <strong>optional draft message</strong> for the side being bumped. EA generates the draft in David's voice using prior thread context. He can review, edit, and apply. <strong>"Apply choice only"</strong> is the no-draft path (record his preference without sending anything — useful in v0.1 where outbound is read-only).
+          <br/><br/>
+          Two outcomes recorded: (1) <code class="mono">conflicts.resolve</code> writes the user's choice + a <code class="mono">conflict_resolved</code> feedback signal; (2) optionally a Gmail draft (v0.2 feature; v0.1 just records intent).
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ────────── State 5 — All clear ────────── -->
+<div class="prototype" id="state-5">
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">Executive Assistant<div class="tenant">david@osnhq.com</div></div>
+      <div class="nav-group">
+        <div class="group-heading">Surface</div>
+        <a class="nav-link active" href="#"><span class="glyph">◐</span>Today</a>
+        <a class="nav-link" href="#"><span class="glyph">◷</span>History</a>
+        <a class="nav-link" href="#"><span class="glyph">◇</span>Memory</a>
+      </div>
+    </aside>
+    <main>
+      <div class="screen-header">
+        <h1>This week</h1>
+        <div class="date">Thursday, 15 May 2026 · Mumbai</div>
+      </div>
+      <div class="screen-body">
+        <div class="day-brief">
+          <p>Klein moved to 09:30 — handled. Things ease until Board at 14:00. London flight lifts at 22:00.</p>
+        </div>
+
+        <div class="all-clear">
+          <span class="glyph">✓</span>
+          <span><strong>All clear</strong> · 2 items handled (1 change acknowledged, 1 conflict resolved — kept Klein, draft to standup saved)</span>
+          <span class="note">Fades in 8s · click to dismiss now</span>
+        </div>
+
+        <div class="now-card highlight">
+          <div class="focus-time">09:30<span class="when">Now · 12 min</span></div>
+          <div>
+            <div class="title">Klein 1:1 — Acme renewal pulse</div>
+            <div class="sub">Mark Klein (Acme) · Google Meet · 30 min</div>
+          </div>
+        </div>
+
+        <div class="tradeoff">
+          <div class="heading">State 5 · All clear</div>
+          <strong>What happened:</strong> Both issues are resolved. The panel collapsed back to a thin green confirmation strip — same vertical rhythm as the original attention strip, but in success colours. Auto-fades after ~8s, or click to dismiss. Klein's card no longer has badges; the day body is now visually quiet.
+          <br/><br/>
+          The fade ensures David's eye gets a clean day view after acting; the 8 second timer is enough to register success without lingering. Resolved items are still queryable via <code class="mono">deltas.acknowledge</code> / <code class="mono">conflicts.resolve</code> rows in the DB, surfaced in the History page.
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+  const tabs = document.querySelectorAll(".tab");
+  const protos = document.querySelectorAll(".prototype");
+  tabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      tabs.forEach((t) => t.classList.remove("active"));
+      protos.forEach((p) => p.classList.remove("active"));
+      tab.classList.add("active");
+      document.getElementById(tab.dataset.target).classList.add("active");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  });
+</script>
+
+</body>
+</html>

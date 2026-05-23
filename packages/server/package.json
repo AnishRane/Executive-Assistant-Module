@@ -1,0 +1,27 @@
+{
+  "name": "@executive-assistant/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc && pnpm postbuild",
+    "postbuild": "node -e \"const{cpSync,existsSync}=require('node:fs');if(existsSync('src/skills'))cpSync('src/skills','dist/skills',{recursive:true})\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@boringos/agent": "link:../../../boringos/packages/@boringos/agent",
+    "@boringos/module-sdk": "link:../../../boringos/packages/@boringos/module-sdk",
+    "@executive-assistant/shared": "workspace:*",
+    "drizzle-orm": "^0.41.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5"
+  }
+}

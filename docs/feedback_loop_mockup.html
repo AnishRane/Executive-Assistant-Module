@@ -1,0 +1,904 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Executive Assistant — Feedback Loop Mockup</title>
+  <style>
+    :root {
+      --ink: #1c1c1a;
+      --ink-soft: #4a4a47;
+      --ink-faint: #8a8a85;
+      --ink-very-faint: #b8b6ad;
+      --paper: #f7f5f0;
+      --paper-card: #fffdf8;
+      --paper-warm: #fbf8ef;
+      --rule: #d8d4c8;
+      --rule-soft: #efece4;
+      --accent: #6b4f2c;
+      --elevated: #b8761c;
+      --delta: #a64d2c;
+      --signal: #2d6aa3;
+      --learned: #2d4a3e;
+      --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); }
+    body {
+      font-family: "Iowan Old Style", "Charter", "Palatino", Georgia, serif;
+      font-size: 16px;
+      line-height: 1.55;
+      letter-spacing: 0.005em;
+    }
+    .page {
+      max-width: 940px;
+      margin: 0 auto;
+      padding: 56px 48px 120px;
+    }
+    .eyebrow {
+      font-family: var(--mono);
+      font-size: 10.5px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      margin-bottom: 14px;
+    }
+    h1 {
+      font-weight: 500;
+      font-size: 30px;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+      margin: 0 0 10px;
+      color: var(--ink);
+    }
+    h2.section {
+      font-weight: 500;
+      font-size: 13px;
+      font-family: var(--mono);
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      margin: 64px 0 18px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--rule);
+    }
+    p { margin: 0 0 12px; color: var(--ink-soft); }
+    .lede {
+      font-size: 17.5px;
+      line-height: 1.55;
+      color: var(--ink);
+      margin-bottom: 28px;
+    }
+
+    /* ─── Dossier header ─── */
+    .dossier-header {
+      margin-bottom: 28px;
+    }
+    .dossier-header .date {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      margin-bottom: 6px;
+    }
+    .dossier-header .day-title {
+      font-size: 32px;
+      font-weight: 500;
+      color: var(--ink);
+      margin-bottom: 8px;
+      letter-spacing: -0.005em;
+    }
+    .dossier-header .narrative {
+      font-size: 18px;
+      line-height: 1.55;
+      color: var(--ink);
+      max-width: 700px;
+      font-style: italic;
+      margin-bottom: 10px;
+    }
+    .brief-edit {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      color: var(--signal);
+      cursor: pointer;
+      border: 1px dashed var(--ink-very-faint);
+      padding: 3px 8px;
+      border-radius: 2px;
+    }
+
+    /* ─── Timeline ─── */
+    .timeline {
+      border-left: 1px solid var(--rule);
+      margin-left: 12px;
+      padding-left: 22px;
+      position: relative;
+    }
+    .tl-item {
+      position: relative;
+      padding: 14px 0 18px;
+      border-bottom: 1px solid var(--rule-soft);
+    }
+    .tl-item:last-child { border-bottom: none; }
+    .tl-item::before {
+      content: "";
+      position: absolute;
+      left: -28px;
+      top: 22px;
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--paper);
+      border: 1.5px solid var(--ink-very-faint);
+    }
+    .tl-item.elevated::before {
+      background: var(--elevated);
+      border-color: var(--elevated);
+      box-shadow: 0 0 0 3px var(--paper);
+    }
+    .tl-item .time {
+      font-family: var(--mono);
+      font-size: 11.5px;
+      color: var(--ink-faint);
+      letter-spacing: 0.06em;
+      margin-bottom: 2px;
+    }
+    .tl-item .head-line {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .tl-item .title {
+      font-size: 18px;
+      font-weight: 500;
+      color: var(--ink);
+    }
+    .tl-item .summary {
+      color: var(--ink-soft);
+      font-size: 15px;
+      margin-top: 4px;
+    }
+
+    .badge {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 9.5px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      padding: 2px 7px;
+      border-radius: 2px;
+      vertical-align: middle;
+    }
+    .badge.imminent { background: #f4e3c8; color: var(--elevated); }
+    .badge.changed  { background: #f3dccd; color: var(--delta); }
+    .badge.flagged  { background: #e0dfd2; color: var(--ink-soft); }
+
+    /* ─── Drilldown card ─── */
+    .card {
+      background: var(--paper-card);
+      border: 1px solid var(--rule);
+      border-radius: 4px;
+      padding: 26px 30px;
+      margin: 18px 0;
+    }
+    .card .card-eyebrow {
+      font-family: var(--mono);
+      font-size: 10.5px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      margin-bottom: 6px;
+    }
+    .card .card-title {
+      font-size: 22px;
+      font-weight: 500;
+      color: var(--ink);
+      margin-bottom: 4px;
+    }
+    .card .card-sub {
+      font-size: 14px;
+      color: var(--ink-faint);
+      margin-bottom: 20px;
+    }
+    .card-section {
+      margin-top: 22px;
+      padding-top: 16px;
+      border-top: 1px solid var(--rule-soft);
+    }
+    .card-section h4 {
+      font-family: var(--mono);
+      font-size: 10.5px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      margin: 0 0 10px;
+    }
+    .card-section .brief-prose {
+      font-size: 16px;
+      line-height: 1.55;
+      color: var(--ink);
+      margin-bottom: 6px;
+    }
+
+    .logistics {
+      display: grid;
+      grid-template-columns: 90px 1fr;
+      gap: 6px 14px;
+      font-size: 14.5px;
+    }
+    .logistics dt { color: var(--ink-faint); font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.06em; padding-top: 3px; }
+    .logistics dd { margin: 0; color: var(--ink-soft); }
+
+    .attendees {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .attendee {
+      display: grid;
+      grid-template-columns: 24px 1fr auto;
+      gap: 12px;
+      align-items: start;
+    }
+    .attendee .dot {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #e9e3d5;
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 600;
+      display: grid;
+      place-items: center;
+      font-family: var(--mono);
+    }
+    .attendee .who { font-size: 15px; color: var(--ink); }
+    .attendee .who .name { font-weight: 600; }
+    .attendee .who .role { color: var(--ink-faint); font-size: 13.5px; }
+    .attendee .bio { color: var(--ink-soft); font-size: 14px; margin-top: 2px; }
+
+    .excerpt {
+      border-left: 2px solid var(--rule);
+      padding: 4px 0 4px 14px;
+      margin: 0 0 14px;
+    }
+    .excerpt .who-when {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      color: var(--ink-faint);
+      margin-bottom: 4px;
+    }
+    .excerpt .text {
+      font-style: italic;
+      font-size: 15px;
+      color: var(--ink);
+    }
+
+    .action-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px dashed var(--rule-soft);
+      gap: 14px;
+    }
+    .action-row:last-child { border-bottom: none; }
+    .action-row .a-text { color: var(--ink); font-size: 15px; }
+    .action-row .a-meta { font-family: var(--mono); font-size: 11px; color: var(--ink-faint); }
+
+    .delta-strip {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: #fbeee2;
+      border-left: 3px solid var(--delta);
+      padding: 12px 16px;
+      border-radius: 0 3px 3px 0;
+      margin-bottom: 10px;
+    }
+    .delta-strip .d-text { font-size: 15px; color: var(--ink); flex: 1; }
+    .delta-strip .d-time { font-family: var(--mono); font-size: 11px; color: var(--ink-faint); }
+
+    /* ─── Affordances (the feedback capture surface) ─── */
+    .affordances {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+    .aff {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.04em;
+      color: var(--signal);
+      padding: 3px 9px;
+      border: 1px dashed var(--ink-very-faint);
+      border-radius: 2px;
+      cursor: pointer;
+      background: transparent;
+    }
+    .aff:hover {
+      border-style: solid;
+      border-color: var(--signal);
+    }
+    .aff.subtle { color: var(--ink-faint); }
+    .aff .num {
+      display: inline-grid;
+      place-items: center;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--signal);
+      color: white;
+      font-size: 9.5px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    /* ─── Annotation strip (explains what each affordance feeds) ─── */
+    .annotations {
+      background: var(--paper-warm);
+      border: 1px solid var(--rule);
+      border-radius: 4px;
+      padding: 18px 22px;
+      margin: 18px 0 30px;
+      font-size: 14px;
+      color: var(--ink-soft);
+    }
+    .annotations h4 {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      margin: 0 0 10px;
+    }
+    .annotations .ann-row {
+      display: grid;
+      grid-template-columns: 22px 200px 1fr;
+      gap: 10px;
+      padding: 6px 0;
+      border-bottom: 1px solid var(--rule-soft);
+    }
+    .annotations .ann-row:last-child { border-bottom: none; }
+    .annotations .num-chip {
+      display: inline-grid;
+      place-items: center;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--signal);
+      color: white;
+      font-size: 10px;
+      font-weight: 700;
+      font-family: var(--mono);
+      margin-top: 1px;
+    }
+    .annotations .ann-source {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--ink);
+    }
+    .annotations .ann-target {
+      font-size: 14px;
+      color: var(--ink-soft);
+    }
+    .annotations .ann-target code {
+      background: #f1ede2;
+      padding: 1px 5px;
+      border-radius: 2px;
+      font-size: 12.5px;
+    }
+
+    /* ─── Memory & evidence ─── */
+    .memory {
+      background: var(--paper-card);
+      border: 1px solid var(--rule);
+      border-radius: 4px;
+      padding: 22px 26px;
+      margin: 14px 0;
+    }
+    .memory .tag {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--learned);
+      letter-spacing: 0.04em;
+      background: #e7eee9;
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 2px;
+      margin-bottom: 10px;
+    }
+    .memory .paragraph {
+      font-size: 16px;
+      line-height: 1.55;
+      color: var(--ink);
+      margin-bottom: 16px;
+    }
+    .memory .evidence-label {
+      font-family: var(--mono);
+      font-size: 10.5px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      margin-bottom: 8px;
+    }
+    .evidence-list {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 4px;
+    }
+    .evidence-list li {
+      display: grid;
+      grid-template-columns: 100px 1fr;
+      gap: 14px;
+      padding: 8px 0;
+      border-top: 1px solid var(--rule-soft);
+      font-size: 14px;
+    }
+    .evidence-list li:first-child { border-top: none; }
+    .evidence-list .kind {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      color: var(--ink-faint);
+    }
+    .evidence-list .kind.struct { color: var(--learned); }
+    .evidence-list .kind.signal { color: var(--signal); }
+    .evidence-list .kind.engage { color: var(--accent); }
+    .evidence-list .body { color: var(--ink-soft); }
+    .evidence-list .body b { color: var(--ink); font-weight: 600; }
+
+    /* ─── Feedback signals stream ─── */
+    .stream {
+      background: var(--paper-card);
+      border: 1px solid var(--rule);
+      border-radius: 4px;
+      padding: 0;
+      margin: 14px 0;
+      overflow: hidden;
+    }
+    .stream table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+    .stream th, .stream td {
+      text-align: left;
+      vertical-align: top;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--rule-soft);
+    }
+    .stream th {
+      font-family: var(--mono);
+      font-size: 10.5px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      font-weight: 500;
+      background: #faf7ed;
+    }
+    .stream tr:last-child td { border-bottom: none; }
+    .stream td.kind { font-family: var(--mono); font-size: 12px; color: var(--signal); white-space: nowrap; }
+    .stream td.subj { font-family: var(--mono); font-size: 11.5px; color: var(--ink-faint); }
+    .stream td.body { color: var(--ink-soft); }
+    .stream td.when { font-family: var(--mono); font-size: 11.5px; color: var(--ink-faint); white-space: nowrap; }
+
+    .footer {
+      margin-top: 80px;
+      padding-top: 24px;
+      border-top: 1px solid var(--rule);
+      font-size: 12.5px;
+      color: var(--ink-faint);
+    }
+
+    /* ─── Conflict styling ─── */
+    :root { --conflict: #a82424; }
+    .badge.conflict { background: #f4d6d0; color: var(--conflict); }
+    .tl-item.conflict::before {
+      background: var(--conflict);
+      border-color: var(--conflict);
+    }
+    .conflict-note {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      color: var(--conflict);
+      margin-top: 6px;
+    }
+    .delta-strip.conflict {
+      background: #f4dcd7;
+      border-left-color: var(--conflict);
+    }
+    .conflict-strip {
+      background: #f4dcd7;
+      border-left: 3px solid var(--conflict);
+      padding: 10px 14px;
+      margin: -8px 0 18px;
+      font-size: 14px;
+      color: var(--conflict);
+    }
+    .logistics dd.conflict-dd { color: var(--conflict); }
+  </style>
+</head>
+<body>
+  <div class="page">
+
+    <div class="eyebrow">Executive Assistant · Feedback loop mockup · Illustrative, not implemented</div>
+    <h1>How the dossier captures signal — and turns it into preferences</h1>
+    <p class="lede">
+      Three views below: a glance at the timeline, a meeting drilldown with
+      the actual capture affordances highlighted, and the memory page
+      showing what the agent has learned and the evidence each preference
+      stands on. Numbered chips mark every place a signal is captured.
+    </p>
+
+    <!-- ─────────────────────────────────────────────────────────── -->
+    <h2 class="section">View 1 · The morning glance</h2>
+
+    <div class="dossier-header">
+      <div class="date">Tuesday · May 14 · 06:01</div>
+      <div class="day-title">A short Tuesday — two meetings, no travel</div>
+      <div class="narrative">
+        Klein moved up by thirty minutes; that puts him at nine, on top
+        of your existing nine‑o’clock with Sara Reyes. You’ll want to
+        decide which to take before the morning runs away from you. A
+        working lunch with Patel, then the rest of the afternoon is
+        yours. Dinner at Le Bernardin holds at seven.
+      </div>
+      <span class="brief-edit">
+        <span class="num" style="display:inline-grid;place-items:center;width:14px;height:14px;border-radius:50%;background:var(--signal);color:white;font-size:9.5px;font-weight:700;">1</span>
+        ✎ Edit brief
+      </span>
+    </div>
+
+    <div class="timeline">
+      <div class="tl-item conflict">
+        <div class="time">09:00 — 09:30</div>
+        <div class="head-line">
+          <div class="title">Sara Reyes · board prep</div>
+          <span class="badge conflict">Double‑booked</span>
+        </div>
+        <div class="summary">Half‑hour walkthrough of next week’s deck. Quiet thread, no agenda changes since you accepted.</div>
+        <div class="conflict-note">Conflicts with Klein @ Acme · 09:00 — 09:45</div>
+        <div class="affordances">
+          <span class="aff"><span class="num">6</span>Take this · ask Klein to swap</span>
+          <span class="aff subtle">Both — they overlap by design</span>
+        </div>
+      </div>
+
+      <div class="tl-item elevated conflict">
+        <div class="time">09:00 — 09:45</div>
+        <div class="head-line">
+          <div class="title">Klein @ Acme · renewal call</div>
+          <span class="badge imminent">Imminent</span>
+          <span class="badge changed">Moved 30 min earlier · was 09:30</span>
+          <span class="badge conflict">Double‑booked</span>
+        </div>
+        <div class="summary">Renewal conversation; expect pushback on the multi‑year discount. Pricing proposal arrived yesterday at 11:42pm.</div>
+        <div class="conflict-note">Conflicts with Sara Reyes · 09:00 — 09:30</div>
+        <div class="affordances">
+          <span class="aff"><span class="num">6</span>Take this · ask Reyes to swap</span>
+          <span class="aff subtle">Both — they overlap by design</span>
+        </div>
+      </div>
+
+      <div class="tl-item">
+        <div class="time">11:00 — 12:30</div>
+        <div class="head-line">
+          <div class="title">Working lunch · Patel</div>
+        </div>
+        <div class="summary">Quiet block, no thread activity since last week.</div>
+      </div>
+
+      <div class="tl-item">
+        <div class="time">14:00 — 16:00</div>
+        <div class="head-line">
+          <div class="title">Out of office</div>
+          <span class="badge flagged">OOO</span>
+        </div>
+        <div class="summary">Family — calendar block.</div>
+      </div>
+
+      <div class="tl-item">
+        <div class="time">19:00</div>
+        <div class="head-line">
+          <div class="title">Le Bernardin · party of two</div>
+          <span class="badge changed">Confirmed 4:12pm yesterday</span>
+        </div>
+        <div class="summary">Holds.</div>
+      </div>
+    </div>
+
+    <!-- ─────────────────────────────────────────────────────────── -->
+    <h2 class="section">View 2 · Meeting drilldown · capture affordances</h2>
+
+    <div class="card">
+      <div class="card-eyebrow">Today · 09:00 — 09:45 · moved 30 min earlier</div>
+      <div class="card-title">Klein @ Acme · renewal call</div>
+      <div class="card-sub">Google Meet · organised by m.klein@acme.com</div>
+
+      <div class="conflict-strip">
+        Conflicts with <b>Sara Reyes · board prep</b> · 09:00 — 09:30. Cascading impact of the 06:48 reschedule.
+      </div>
+
+      <!-- Brief (with edit affordance ❶) -->
+      <div class="card-section">
+        <h4>Brief</h4>
+        <div class="brief-prose">
+          Renewal conversation. Klein sent the updated pricing proposal yesterday
+          at 11:42pm — expect a multi‑year discount ask. Your previous
+          conversation closed without a decision.
+        </div>
+        <div class="affordances">
+          <span class="aff"><span class="num">1</span>Edit brief</span>
+          <span class="aff subtle">✓ Sounds right</span>
+        </div>
+      </div>
+
+      <!-- Logistics -->
+      <div class="card-section">
+        <h4>Logistics</h4>
+        <dl class="logistics">
+          <dt>Time</dt><dd>09:00 — 09:45 ET · <span style="color:var(--ink-faint)">was 09:30 — 10:15</span></dd>
+          <dt>Where</dt><dd>Google Meet · <span style="color:var(--signal)">meet.google.com/abc-defg-hij</span></dd>
+          <dt>Organiser</dt><dd>Mark Klein · m.klein@acme.com</dd>
+          <dt>Conflict</dt><dd class="conflict-dd">Sara Reyes · board prep · 09:00 — 09:30</dd>
+        </dl>
+      </div>
+
+      <!-- Attendees -->
+      <div class="card-section">
+        <h4>Attendees</h4>
+        <div class="attendees">
+          <div class="attendee">
+            <div class="dot">MK</div>
+            <div>
+              <div class="who"><span class="name">Mark Klein</span> · <span class="role">VP Partnerships, Acme</span></div>
+              <div class="bio">Pricing is his pet topic. Tends to send long emails late at night.</div>
+            </div>
+            <span class="aff"><span class="num">2</span>Edit bio</span>
+          </div>
+          <div class="attendee">
+            <div class="dot">SR</div>
+            <div>
+              <div class="who"><span class="name">Sara Reyes</span> · <span class="role">Counsel, Acme</span></div>
+              <div class="bio">First time joining. Drafted the original SOW.</div>
+            </div>
+            <span class="aff"><span class="num">2</span>Edit bio</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Thread excerpts -->
+      <div class="card-section">
+        <h4>From the invite thread</h4>
+
+        <div class="excerpt">
+          <div class="who-when">Mark Klein · yesterday, 11:42pm</div>
+          <div class="text">“Attaching the revised proposal. Two‑year on the table; I’d like to walk you through the structure tomorrow before we get to the discount question.”</div>
+        </div>
+
+        <div class="excerpt">
+          <div class="who-when">Mark Klein · this morning, 06:48</div>
+          <div class="text">“One small thing — pushing 30 minutes earlier if that works on your side. Sara will join.”</div>
+        </div>
+
+        <div class="affordances">
+          <span class="aff"><span class="num">3</span>Pin another thread</span>
+          <span class="aff subtle">All excerpts feel relevant</span>
+        </div>
+      </div>
+
+      <!-- Action items -->
+      <div class="card-section">
+        <h4>Open items</h4>
+        <div class="action-row">
+          <div class="a-text">Klein owes you the final term sheet.</div>
+          <div class="a-meta">inferred · from yesterday’s thread</div>
+          <span class="aff"><span class="num">4</span>Dismiss</span>
+        </div>
+        <div class="action-row">
+          <div class="a-text">You owe Sara a redline on the SOW by Friday.</div>
+          <div class="a-meta">inferred · from this morning’s reply</div>
+          <span class="aff"><span class="num">4</span>Dismiss</span>
+        </div>
+      </div>
+
+      <!-- Deltas -->
+      <div class="card-section">
+        <h4>Since this morning</h4>
+        <div class="delta-strip">
+          <div class="d-text">Meeting moved 30 min earlier · now 09:00 ET (was 09:30).</div>
+          <div class="d-time">06:48</div>
+        </div>
+        <div class="delta-strip conflict">
+          <div class="d-text">Cascading impact · now overlaps with Sara Reyes · board prep · 09:00 — 09:30.</div>
+          <div class="d-time">06:48</div>
+        </div>
+        <div class="affordances">
+          <span class="aff"><span class="num">5</span>Less of this</span>
+          <span class="aff subtle">✓ Useful flag</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Annotation strip explaining the 5 affordances -->
+    <div class="annotations">
+      <h4>What each capture feeds</h4>
+
+      <div class="ann-row">
+        <span class="num-chip">1</span>
+        <span class="ann-source">Edit brief</span>
+        <span class="ann-target">
+          Diff between agent draft and David’s edit. Feeds <code>david.voice</code>.
+          “Removed two superlatives, shortened the second sentence by 40%” is a stronger
+          tone signal than any rating could be.
+        </span>
+      </div>
+
+      <div class="ann-row">
+        <span class="num-chip">2</span>
+        <span class="ann-source">Edit attendee bio</span>
+        <span class="ann-target">
+          Manual correction to what the agent inferred from a signature. Feeds
+          <code>people.&lt;email&gt;</code> directly. The agent stops re-inferring on later meetings.
+        </span>
+      </div>
+
+      <div class="ann-row">
+        <span class="num-chip">3</span>
+        <span class="ann-source">Pin another thread</span>
+        <span class="ann-target">
+          David pins a chain the agent missed. Logs an
+          <code>email_anchors</code> row + a <code>pinned_thread</code> feedback signal.
+          Trains the agent on what counts as “in scope” for similar future meetings.
+        </span>
+      </div>
+
+      <div class="ann-row">
+        <span class="num-chip">4</span>
+        <span class="ann-source">Dismiss open item</span>
+        <span class="ann-target">
+          The agent guessed wrong about an obligation. Sets
+          <code>action_items.status = ignored</code> and writes a
+          <code>dismissed_action</code> signal. Over time, this calibrates how cautious
+          the action-item extractor is.
+        </span>
+      </div>
+
+      <div class="ann-row">
+        <span class="num-chip">5</span>
+        <span class="ann-source">“Less of this” on a delta</span>
+        <span class="ann-target">
+          David doesn’t care to be told about meeting time shifts under 30 minutes
+          (or about Acme specifically, depending on what the agent infers).
+          Writes a <code>marked_unhelpful</code> signal. Eventually feeds the
+          elevation policy.
+        </span>
+      </div>
+
+      <div class="ann-row">
+        <span class="num-chip">6</span>
+        <span class="ann-source">“Take this · ask &lt;X&gt; to swap”</span>
+        <span class="ann-target">
+          A conflict resolution. Records a row in a new
+          <code>executive_assistant__conflicts</code> table marking which item
+          David chose and which one is being deprioritised, plus a
+          <code>conflict_resolved</code> feedback signal carrying the choice.
+          Over time, this feeds a memory like “board‑prep blocks are dispensable
+          when client calls collide.”
+        </span>
+      </div>
+    </div>
+
+    <!-- ─────────────────────────────────────────────────────────── -->
+    <h2 class="section">View 3 · Memory & evidence</h2>
+    <p>
+      Two of the contextual memories the agent has built, with the evidence
+      each one stands on. The point: every preference is traceable to the
+      structured row, the feedback signal, or the engagement pattern that
+      produced it.
+    </p>
+
+    <div class="memory">
+      <span class="tag">david.lodging.preferences</span>
+      <div class="paragraph">
+        Usually stays at the Greenwich Hotel in New York. Has tried the
+        Carlyle twice but didn’t book it again. Prefers boutique to chain;
+        no superlatives in property descriptions.
+      </div>
+      <div class="evidence-label">Evidence trail</div>
+      <ul class="evidence-list">
+        <li>
+          <span class="kind struct">structured</span>
+          <span class="body"><b>3 of 4</b> recent New York trip_legs of kind <code>hotel</code> · provider = Greenwich Hotel.</span>
+        </li>
+        <li>
+          <span class="kind signal">feedback</span>
+          <span class="body"><b>2× dismissed</b> agent suggestions of the Carlyle as alternative · feedback_signals · kind = <code>dismissed_suggestion</code>.</span>
+        </li>
+        <li>
+          <span class="kind engage">engagement</span>
+          <span class="body"><b>5 of 5</b> NY trip cards: hotel block was the first card opened.</span>
+        </li>
+        <li>
+          <span class="kind signal">feedback</span>
+          <span class="body">Edit on May 11 brief: removed phrase “the extraordinary Greenwich” → “the Greenwich.” · kind = <code>edited_brief</code>.</span>
+        </li>
+      </ul>
+    </div>
+
+    <div class="memory">
+      <span class="tag">david.voice</span>
+      <div class="paragraph">
+        Prefers understatement. No superlatives. Treats logistics as
+        private, agendas as shared. Reads at 6:45–7:15. Short sentences,
+        especially in the day-narrative paragraph.
+      </div>
+      <div class="evidence-label">Evidence trail</div>
+      <ul class="evidence-list">
+        <li>
+          <span class="kind signal">feedback</span>
+          <span class="body"><b>4 brief edits</b> in the past 14 days · diffs consistently shorten sentences and strip adjectives.</span>
+        </li>
+        <li>
+          <span class="kind engage">engagement</span>
+          <span class="body">Dossier opened daily between <b>06:48 and 07:11</b> over the last 9 weekdays.</span>
+        </li>
+        <li>
+          <span class="kind signal">feedback</span>
+          <span class="body"><b>2× pinned</b> chains where the original brief was rewritten as one short sentence and accepted.</span>
+        </li>
+      </ul>
+    </div>
+
+    <!-- ─────────────────────────────────────────────────────────── -->
+    <h2 class="section">View 4 · Recent feedback signals (raw)</h2>
+    <p>
+      Last twelve rows from <code>executive_assistant__feedback_signals</code>.
+      This is what the weekly reflection routine reads when deciding which
+      contextual memories to update.
+    </p>
+
+    <div class="stream">
+      <table>
+        <thead>
+          <tr><th>When</th><th>Kind</th><th>Subject</th><th>Body</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="when">May 14 · 06:55</td><td class="kind">conflict_resolved</td><td class="subj">conflict · c1e7…</td><td class="body">Klein vs Reyes 09:00 → took Klein; suggested swap to Reyes</td></tr>
+          <tr><td class="when">May 14 · 06:53</td><td class="kind">edited_brief</td><td class="subj">snapshot · 5e7c…</td><td class="body">−2 superlatives, sentence count 4 → 3</td></tr>
+          <tr><td class="when">May 14 · 06:50</td><td class="kind">dismissed_action</td><td class="subj">action_item · a91f…</td><td class="body">“Send Klein the deck” → not relevant</td></tr>
+          <tr><td class="when">May 13 · 19:12</td><td class="kind">pinned_thread</td><td class="subj">meeting · 02bb…</td><td class="body">Pinned chain with Patel re: lunch agenda</td></tr>
+          <tr><td class="when">May 13 · 07:04</td><td class="kind">marked_unhelpful</td><td class="subj">delta · d4c9…</td><td class="body">UA flight time shift &lt;15 min — don’t elevate</td></tr>
+          <tr><td class="when">May 12 · 06:51</td><td class="kind">edited_brief</td><td class="subj">snapshot · 9b3a…</td><td class="body">“extraordinary” → “good”</td></tr>
+          <tr><td class="when">May 12 · 06:49</td><td class="kind">opened_card</td><td class="subj">trip · 7ee1… (NY)</td><td class="body">hotel block, first card opened</td></tr>
+          <tr><td class="when">May 11 · 06:58</td><td class="kind">edited_attendee_bio</td><td class="subj">attendee · 4a1c…</td><td class="body">Mark Klein: removed “sometimes evasive”</td></tr>
+          <tr><td class="when">May 11 · 06:46</td><td class="kind">dismissed_suggestion</td><td class="subj">trip · 7ee1…</td><td class="body">“Try the Carlyle for this trip” → no</td></tr>
+          <tr><td class="when">May 10 · 07:11</td><td class="kind">acknowledged_delta</td><td class="subj">delta · 6cd2…</td><td class="body">Hotel checkin time updated · acknowledged</td></tr>
+          <tr><td class="when">May 09 · 06:52</td><td class="kind">opened_card</td><td class="subj">meeting · 0e88…</td><td class="body">Klein @ Acme · 41s on drilldown</td></tr>
+          <tr><td class="when">May 08 · 07:02</td><td class="kind">marked_unhelpful</td><td class="subj">delta · b22f…</td><td class="body">Weather change forecast — don’t surface</td></tr>
+          <tr><td class="when">May 07 · 06:55</td><td class="kind">edited_brief</td><td class="subj">snapshot · 1f02…</td><td class="body">−1 superlative, +1 sentence break</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="footer">
+      Illustrative mockup prepared during brainstorming. Numbers, names, and
+      dates are placeholders. The point of this document is to make the
+      feedback capture surface a thing you can point at and disagree with —
+      to decide which affordances v0.1 ships with, before we lock the
+      design.
+    </div>
+
+  </div>
+</body>
+</html>

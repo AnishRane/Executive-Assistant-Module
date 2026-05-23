@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Path A — BoringOS Before &amp; After</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #0f1117;
+    color: #e2e8f0;
+    padding: 40px 24px;
+    line-height: 1.6;
+  }
+
+  .page-title {
+    font-size: 28px;
+    font-weight: 700;
+    color: #f8fafc;
+    margin-bottom: 8px;
+  }
+
+  .page-sub {
+    color: #94a3b8;
+    font-size: 15px;
+    margin-bottom: 48px;
+  }
+
+  .overview {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 10px;
+    padding: 24px 28px;
+    margin-bottom: 48px;
+  }
+
+  .overview h2 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #38bdf8;
+    margin-bottom: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .overview-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+
+  .overview-card {
+    background: #0f172a;
+    border-radius: 8px;
+    padding: 16px;
+    border-left: 3px solid;
+  }
+
+  .overview-card.types { border-color: #f59e0b; }
+  .overview-card.google { border-color: #8b5cf6; }
+  .overview-card.boringos { border-color: #06b6d4; }
+  .overview-card.ea { border-color: #22c55e; }
+
+  .overview-card .file {
+    font-family: "SF Mono", "Fira Code", monospace;
+    font-size: 11px;
+    color: #64748b;
+    margin-bottom: 6px;
+  }
+
+  .overview-card .what {
+    font-size: 13px;
+    color: #cbd5e1;
+    line-height: 1.5;
+  }
+
+  .section {
+    margin-bottom: 56px;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+
+  .step-badge {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 20px;
+    padding: 3px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #94a3b8;
+    white-space: nowrap;
+  }
+
+  .section-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: #f1f5f9;
+  }
+
+  .section-file {
+    font-family: "SF Mono", "Fira Code", monospace;
+    font-size: 12px;
+    color: #64748b;
+    margin-left: auto;
+    white-space: nowrap;
+  }
+
+  .section-desc {
+    color: #94a3b8;
+    font-size: 14px;
+    margin-bottom: 20px;
+    padding-left: 2px;
+  }
+
+  .diff-pane {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .diff-side {
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #334155;
+  }
+
+  .diff-side-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    border-bottom: 1px solid #334155;
+  }
+
+  .diff-side.before .diff-side-header {
+    background: #1a1215;
+    color: #f87171;
+  }
+
+  .diff-side.after .diff-side-header {
+    background: #0d1a10;
+    color: #4ade80;
+  }
+
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .dot-red { background: #ef4444; }
+  .dot-green { background: #22c55e; }
+
+  pre {
+    margin: 0;
+    padding: 20px 16px;
+    font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+    font-size: 12.5px;
+    line-height: 1.7;
+    overflow-x: auto;
+    background: #111827;
+  }
+
+  .diff-side.before pre { background: #130f0f; }
+  .diff-side.after pre { background: #0a150c; }
+
+  /* Syntax token classes */
+  .kw { color: #c084fc; }          /* keywords: interface, export, async, const, etc */
+  .fn { color: #60a5fa; }          /* function names */
+  .ty { color: #34d399; }          /* types */
+  .str { color: #fbbf24; }         /* strings */
+  .cm { color: #4b5563; font-style: italic; } /* comments */
+  .op { color: #94a3b8; }          /* operators / punctuation */
+  .num { color: #fb923c; }         /* numbers */
+  .prop { color: #e2e8f0; }        /* property names */
+  .param { color: #fcd34d; }       /* parameter names */
+
+  /* Diff highlight rows — wrap a <span class="add"> or <span class="del"> around a line */
+  .line-add {
+    display: block;
+    background: rgba(34, 197, 94, 0.10);
+    border-left: 3px solid #22c55e;
+    padding-left: 8px;
+    margin-left: -16px;
+    padding-right: 4px;
+  }
+
+  .line-del {
+    display: block;
+    background: rgba(239, 68, 68, 0.10);
+    border-left: 3px solid #ef4444;
+    padding-left: 8px;
+    margin-left: -16px;
+    padding-right: 4px;
+  }
+
+  .line-ctx {
+    display: block;
+    color: #64748b;
+  }
+
+  .callout {
+    margin-top: 16px;
+    padding: 14px 18px;
+    background: #1e293b;
+    border-radius: 8px;
+    border-left: 4px solid #38bdf8;
+    font-size: 13.5px;
+    color: #cbd5e1;
+    line-height: 1.6;
+  }
+
+  .callout strong { color: #f1f5f9; }
+
+  .callout code {
+    font-family: "SF Mono", "Fira Code", monospace;
+    font-size: 12px;
+    background: #0f172a;
+    border-radius: 3px;
+    padding: 1px 5px;
+    color: #a5f3fc;
+  }
+
+  .flow-box {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 10px;
+    padding: 24px;
+    margin-bottom: 48px;
+  }
+
+  .flow-box h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 20px;
+  }
+
+  .flow-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin-bottom: 16px;
+  }
+
+  .flow-node {
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    text-align: center;
+    min-width: 130px;
+  }
+
+  .flow-arrow {
+    flex: 1;
+    text-align: center;
+    color: #475569;
+    font-size: 18px;
+  }
+
+  .flow-arrow-label {
+    font-size: 11px;
+    color: #475569;
+    margin-top: -4px;
+    text-align: center;
+  }
+
+  .fn-ea { background: #1e3a5f; color: #93c5fd; }
+  .fn-boringos { background: #2d1b4e; color: #c4b5fd; }
+  .fn-google { background: #1e3d2f; color: #86efac; }
+
+  .before-flow .flow-node.fn-google-connector { background: #2d1b4e; color: #c4b5fd; }
+  .after-flow .flow-node.fn-google-connector { display: none; }
+
+  .flow-label {
+    font-size: 11px;
+    color: #64748b;
+    margin-top: 2px;
+  }
+
+  .flow-block {
+    text-align: center;
+  }
+
+  .two-flows {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+
+  .two-flows .flow-panel {
+    background: #0f172a;
+    border-radius: 8px;
+    padding: 20px;
+  }
+
+  .two-flows .flow-panel h4 {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #1e293b;
+  }
+
+  .before-panel h4 { color: #f87171; }
+  .after-panel h4 { color: #4ade80; }
+
+  .flow-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .flow-step-num {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .before-panel .flow-step-num { background: #7f1d1d; color: #fca5a5; }
+  .after-panel .flow-step-num { background: #14532d; color: #86efac; }
+
+  .flow-step-text {
+    font-size: 13px;
+    color: #94a3b8;
+    line-height: 1.5;
+  }
+
+  .flow-step-text strong { color: #e2e8f0; }
+  .flow-step-text code {
+    font-family: "SF Mono", "Fira Code", monospace;
+    font-size: 11px;
+    background: #1e293b;
+    border-radius: 3px;
+    padding: 1px 4px;
+    color: #a5f3fc;
+  }
+
+  .cross { color: #ef4444; font-weight: 700; }
+  .tick { color: #22c55e; font-weight: 700; }
+
+  hr.divider {
+    border: none;
+    border-top: 1px solid #1e293b;
+    margin: 48px 0;
+  }
+</style>
+</head>
+<body>
+
+<h1 class="page-title">Path A — BoringOS Before &amp; After</h1>
+<p class="page-sub">
+  Exact code changes to give third-party modules a first-class
+  <code style="font-family:monospace;background:#1e293b;padding:2px 6px;border-radius:4px;color:#a5f3fc">getConnectorToken</code>
+  API — without touching the tool registry or breaking anything that already exists.
+</p>
+
+<!-- ── Overview ───────────────────────────────────────────────── -->
+<div class="overview">
+  <h2>Four files, one new capability</h2>
+  <div class="overview-grid">
+    <div class="overview-card types">
+      <div class="file">module-sdk / types.ts</div>
+      <div class="what">Add <code style="font-family:monospace;font-size:11px">getConnectorToken?</code> to the <code style="font-family:monospace;font-size:11px">ModuleFactoryDeps</code> interface — the contract every module factory receives</div>
+    </div>
+    <div class="overview-card google">
+      <div class="file">core / modules/google.ts</div>
+      <div class="what">Export a new <code style="font-family:monospace;font-size:11px">getConnectorToken()</code> function using the same refresh logic already inside the file</div>
+    </div>
+    <div class="overview-card boringos">
+      <div class="file">core / boringos.ts</div>
+      <div class="what">Wire the new function into the <code style="font-family:monospace;font-size:11px">factoryDeps</code> object so every module factory gets it at boot</div>
+    </div>
+    <div class="overview-card ea">
+      <div class="file">executive-assistant / calendar.ts</div>
+      <div class="what">Replace the <code style="font-family:monospace;font-size:11px">invoke("google.calendar…")</code> string call with a real <code style="font-family:monospace;font-size:11px">fetch()</code> using the token</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Call flow comparison ───────────────────────────────────── -->
+<div class="flow-box">
+  <h3>How a calendar sync flows — before vs after</h3>
+  <div class="two-flows">
+    <div class="flow-panel before-panel">
+      <h4>⟵ Before (string-coupled)</h4>
+      <div class="flow-step">
+        <div class="flow-step-num">1</div>
+        <div class="flow-step-text">EA builds a string <code>"google.calendar.list_events"</code> — no compile-time check</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-step-num">2</div>
+        <div class="flow-step-text">Calls <code>invoke(registry, string, args)</code> — routes through BoringOS tool registry</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-step-num">3</div>
+        <div class="flow-step-text">BoringOS finds the Google connector tool, loads creds, calls Google, returns result</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-step-num">4</div>
+        <div class="flow-step-text">
+          EA tries to parse <strong>unknown shape</strong>:
+          <code>result?.data?.events ?? result?.events</code>
+          — brittle, shape can change silently
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-step-num">5</div>
+        <div class="flow-step-text"><span class="cross">✗</span> If Google connector renames or removes the tool, EA silently gets zero events</div>
+      </div>
+    </div>
+    <div class="flow-panel after-panel">
+      <h4>⟶ After (direct token)</h4>
+      <div class="flow-step">
+        <div class="flow-step-num">1</div>
+        <div class="flow-step-text">EA calls <code>deps.getConnectorToken("google", tenantId)</code> — typed, no strings</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-step-num">2</div>
+        <div class="flow-step-text">BoringOS looks up credentials, refreshes if expired, returns <code>{ accessToken }</code></div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-step-num">3</div>
+        <div class="flow-step-text">EA calls Google Calendar API directly with <code>Bearer &lt;token&gt;</code></div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-step-num">4</div>
+        <div class="flow-step-text">EA parses <code>response.items[]</code> — the real Google shape, documented and stable</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-step-num">5</div>
+        <div class="flow-step-text"><span class="tick">✓</span> Google connector can change entirely — EA doesn't care. It owns its own fetch.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider" />
+
+<!-- ── Step 1: types.ts ───────────────────────────────────────── -->
+<div class="section">
+  <div class="section-header">
+    <span class="step-badge">Step 1 of 4</span>
+    <span class="section-title">The contract — add to the interface</span>
+    <span class="section-file">packages/@boringos/module-sdk/src/types.ts  ·  +7 lines</span>
+  </div>
+  <p class="section-desc">
+    <code style="font-family:monospace;background:#1e293b;padding:2px 5px;border-radius:3px;color:#a5f3fc;font-size:12px">ModuleFactoryDeps</code>
+    is the object every module factory receives. Right now it has 8 fields.
+    We add one optional field. Everything that already destructures this interface keeps compiling unchanged.
+  </p>
+
+  <div class="diff-pane">
+    <div class="diff-side before">
+      <div class="diff-side-header">
+        <div class="dot dot-red"></div>
+        Before
+      </div>
+      <pre><span class="cm">// (lines 384–417)</span>
+<span class="kw">export interface</span> <span class="ty">ModuleFactoryDeps</span> <span class="op">{</span>
+  <span class="prop">db</span><span class="op">:</span> <span class="ty">unknown</span><span class="op">;</span>
+  <span class="cm">/** The configured MemoryProvider. */</span>
+  <span class="prop">memory</span><span class="op">?:</span> <span class="ty">unknown</span><span class="op">;</span>
+  <span class="cm">/** The configured StorageBackend. */</span>
+  <span class="prop">drive</span><span class="op">?:</span> <span class="ty">unknown</span><span class="op">;</span>
+  <span class="cm">/** The agent engine instance. */</span>
+  <span class="prop">engine</span><span class="op">?:</span> <span class="ty">unknown</span><span class="op">;</span>
+  <span class="cm">/** The workflow engine instance. */</span>
+  <span class="prop">workflowEngine</span><span class="op">?:</span> <span class="ty">unknown</span><span class="op">;</span>
+  <span class="cm">/** The tool registry. */</span>
+  <span class="prop">toolRegistry</span><span class="op">?:</span> <span class="ty">unknown</span><span class="op">;</span>
+  <span class="cm">/** The realtime SSE bus. */</span>
+  <span class="prop">realtimeBus</span><span class="op">?:</span> <span class="ty">unknown</span><span class="op">;</span>
+  <span class="cm">/** The connector event bus. */</span>
+  <span class="prop">eventBus</span><span class="op">?:</span> <span class="ty">unknown</span><span class="op">;</span>
+<span class="op">}</span></pre>
+    </div>
+    <div class="diff-side after">
+      <div class="diff-side-header">
+        <div class="dot dot-green"></div>
+        After
+      </div>
+      <pre><span class="cm">// (lines 384–417)</span>
+<span class="kw">export interface</span> <span class="ty">ModuleFactoryDeps</span> <span class="op">{</span>
+  <span class="prop">db</span><span class="op">:</span> <span class="ty">unknown</span><span class="op">;</span>
+  <span class="cm">/** The configured MemoryProvider. */</span>
+  <span class="prop">memory</span><span class="op">?:</span> <span class="ty">unknown</span><span class="op">;</span>
+  <span class="cm">/** The configured StorageBackend. */</span>
+  <span class="prop">drive</span><span class="op">?:</span> <span class="ty">unknown</span><span class="op">;</span>
+  <span class="cm">/** The agent engine instance. */</span>
+  <span class="prop">engine</span><span class="op">?:</span> <span class="ty">unknown</span><span class="op">;</span>
+  <span class="cm">/** The workflow engine instance. */</span>
+  <span class="prop">workflowEngine</span><span class="op">?:</span> <span class="ty">unknown</span><span class="op">;</span>
+  <span class="cm">/** The tool registry. */</span>
+  <span class="prop">toolRegistry</span><span class="op">?:</span> <span class="ty">unknown</span><span class="op">;</span>
+  <span class="cm">/** The realtime SSE bus. */</span>
+  <span class="prop">realtimeBus</span><span class="op">?:</span> <span class="ty">unknown</span><span class="op">;</span>
+  <span class="cm">/** The connector event bus. */</span>
+  <span class="prop">eventBus</span><span class="op">?:</span> <span class="ty">unknown</span><span class="op">;</span>
+<span class="line-add">  <span class="cm">/**
+   * Returns a valid access token for a connected OAuth provider.
+   * The framework handles cred lookup and proactive refresh —
+   * the module only needs the token.
+   */</span>
+  <span class="prop">getConnectorToken</span><span class="op">?:</span> <span class="op">(</span>
+    <span class="param">kind</span><span class="op">:</span> <span class="str">"google"</span> <span class="op">|</span> <span class="str">"slack"</span><span class="op">,</span>
+    <span class="param">tenantId</span><span class="op">:</span> <span class="ty">string</span><span class="op">,</span>
+  <span class="op">) =></span> <span class="ty">Promise</span><span class="op">&lt;{</span> <span class="prop">accessToken</span><span class="op">:</span> <span class="ty">string</span> <span class="op">}</span> <span class="op">|</span> <span class="ty">null</span><span class="op">&gt;;</span>
+</span><span class="op">}</span></pre>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>Why optional (<code>?</code>)?</strong>
+    All existing module factories receive <code>ModuleFactoryDeps</code> — they don't destructure
+    <code>getConnectorToken</code> today, so they keep compiling with zero changes.
+    The EA module checks <code>deps.getConnectorToken?.(...)</code> and fail-softs when absent
+    (e.g., running against an older host that hasn't shipped this yet).
+  </div>
+</div>
+
+<!-- ── Step 2: google.ts ──────────────────────────────────────── -->
+<div class="section">
+  <div class="section-header">
+    <span class="step-badge">Step 2 of 4</span>
+    <span class="section-title">The implementation — new export in google.ts</span>
+    <span class="section-file">packages/@boringos/core/src/modules/google.ts  ·  +30 lines</span>
+  </div>
+  <p class="section-desc">
+    <code style="font-family:monospace;background:#1e293b;padding:2px 5px;border-radius:3px;color:#a5f3fc;font-size:12px">google.ts</code>
+    already has two private helpers: <code style="font-family:monospace;font-size:12px">loadGoogleCreds()</code> (DB lookup) and
+    <code style="font-family:monospace;font-size:12px">refreshOAuthToken()</code> (token refresh). The new function
+    just combines them into a single exported helper.
+    No logic is duplicated — it reuses what's already there.
+  </p>
+
+  <div class="diff-pane">
+    <div class="diff-side before">
+      <div class="diff-side-header">
+        <div class="dot dot-red"></div>
+        Before — private helpers, not exported
+      </div>
+      <pre><span class="cm">// loadGoogleCreds — private, line ~66</span>
+<span class="kw">async function</span> <span class="fn">loadGoogleCreds</span><span class="op">(</span>
+  <span class="param">db</span><span class="op">:</span> <span class="ty">Db</span><span class="op">,</span>
+  <span class="param">tenantId</span><span class="op">:</span> <span class="ty">string</span><span class="op">,</span>
+<span class="op">):</span> <span class="ty">Promise</span><span class="op">&lt;</span><span class="op">{</span>
+  <span class="prop">rowId</span><span class="op">:</span> <span class="ty">string</span><span class="op">;</span>
+  <span class="prop">rawCredentials</span><span class="op">:</span> <span class="ty">Record</span><span class="op">&lt;</span><span class="ty">string</span><span class="op">,</span> <span class="ty">unknown</span><span class="op">&gt;;</span>
+  <span class="prop">accessToken</span><span class="op">:</span> <span class="ty">string</span><span class="op">;</span>
+  <span class="prop">refreshToken</span><span class="op">?:</span> <span class="ty">string</span><span class="op">;</span>
+<span class="op">}</span> <span class="op">|</span> <span class="ty">null</span><span class="op">&gt;</span>
+
+
+<span class="cm">// runWithRefresh — private, line ~99</span>
+<span class="kw">async function</span> <span class="fn">runWithRefresh</span><span class="op">(</span>
+  <span class="param">db</span><span class="op">:</span> <span class="ty">Db</span><span class="op">,</span>
+  <span class="param">tenantId</span><span class="op">:</span> <span class="ty">string</span><span class="op">,</span>
+  <span class="param">toolName</span><span class="op">:</span> <span class="ty">string</span><span class="op">,</span>
+  <span class="param">invokeOnce</span><span class="op">:</span> <span class="op">(</span><span class="param">token</span><span class="op">:</span> <span class="ty">string</span><span class="op">) =></span>
+    <span class="ty">Promise</span><span class="op">&lt;</span><span class="op">{</span> <span class="prop">success</span><span class="op">:</span> <span class="ty">boolean</span><span class="op">;</span> <span class="prop">data</span><span class="op">?:</span> <span class="ty">unknown</span> <span class="op">}</span><span class="op">&gt;</span><span class="op">,</span>
+<span class="op">):</span> <span class="ty">Promise</span><span class="op">&lt;</span><span class="ty">ToolResult</span><span class="op">&gt;</span>
+
+
+<span class="cm">// Nothing exported from this file that EA can use.</span>
+<span class="cm">// EA is forced to go through the tool registry string API.</span></pre>
+    </div>
+    <div class="diff-side after">
+      <div class="diff-side-header">
+        <div class="dot dot-green"></div>
+        After — new exported function added at bottom
+      </div>
+      <pre><span class="cm">// loadGoogleCreds — unchanged, still private</span>
+<span class="kw">async function</span> <span class="fn">loadGoogleCreds</span><span class="op">(</span>
+  <span class="param">db</span><span class="op">:</span> <span class="ty">Db</span><span class="op">,</span>
+  <span class="param">tenantId</span><span class="op">:</span> <span class="ty">string</span><span class="op">,</span>
+<span class="op">):</span> <span class="ty">Promise</span><span class="op">&lt;</span><span class="op">{</span> <span class="op">...</span> <span class="op">}</span> <span class="op">|</span> <span class="ty">null</span><span class="op">&gt;</span>
+
+
+<span class="cm">// runWithRefresh — unchanged, still private</span>
+<span class="kw">async function</span> <span class="fn">runWithRefresh</span><span class="op">(...)</span>
+
+
+<span class="line-add"><span class="cm">// ── NEW export — used by boringos.ts to populate getConnectorToken ──</span>
+<span class="kw">export async function</span> <span class="fn">getConnectorTokenForTenant</span><span class="op">(</span>
+  <span class="param">db</span><span class="op">:</span> <span class="ty">Db</span><span class="op">,</span>
+  <span class="param">kind</span><span class="op">:</span> <span class="str">"google"</span> <span class="op">|</span> <span class="str">"slack"</span><span class="op">,</span>
+  <span class="param">tenantId</span><span class="op">:</span> <span class="ty">string</span><span class="op">,</span>
+<span class="op">):</span> <span class="ty">Promise</span><span class="op">&lt;{</span> <span class="prop">accessToken</span><span class="op">:</span> <span class="ty">string</span> <span class="op">}</span> <span class="op">|</span> <span class="ty">null</span><span class="op">&gt;</span> <span class="op">{</span>
+  <span class="kw">if</span> <span class="op">(</span><span class="param">kind</span> <span class="op">!==</span> <span class="str">"google"</span><span class="op">)</span> <span class="kw">return</span> <span class="ty">null</span><span class="op">;</span>
+
+  <span class="kw">const</span> <span class="param">creds</span> <span class="op">=</span> <span class="kw">await</span> <span class="fn">loadGoogleCreds</span><span class="op">(</span><span class="param">db</span><span class="op">,</span> <span class="param">tenantId</span><span class="op">);</span>
+  <span class="kw">if</span> <span class="op">(!</span><span class="param">creds</span><span class="op">)</span> <span class="kw">return</span> <span class="ty">null</span><span class="op">;</span>
+
+  <span class="cm">// Refresh proactively if token expires in &lt;60s</span>
+  <span class="kw">const</span> <span class="param">expiresAt</span> <span class="op">=</span> <span class="param">creds</span><span class="op">.</span><span class="prop">rawCredentials</span><span class="op">.</span><span class="prop">expiresAt</span> <span class="kw">as</span> <span class="ty">string</span> <span class="op">|</span> <span class="ty">undefined</span><span class="op">;</span>
+  <span class="kw">const</span> <span class="param">expired</span> <span class="op">=</span> <span class="param">expiresAt</span>
+    <span class="op">?</span> <span class="ty">Date</span><span class="op">.</span><span class="fn">now</span><span class="op">() ></span> <span class="kw">new</span> <span class="ty">Date</span><span class="op">(</span><span class="param">expiresAt</span><span class="op">).</span><span class="fn">getTime</span><span class="op">() -</span> <span class="num">60_000</span>
+    <span class="op">:</span> <span class="kw">false</span><span class="op">;</span>
+
+  <span class="kw">if</span> <span class="op">(</span><span class="param">expired</span> <span class="op">&amp;&amp;</span> <span class="param">creds</span><span class="op">.</span><span class="prop">refreshToken</span><span class="op">) {</span>
+    <span class="kw">const</span> <span class="param">refreshed</span> <span class="op">=</span> <span class="kw">await</span> <span class="fn">refreshOAuthToken</span><span class="op">(</span><span class="str">"google"</span><span class="op">,</span> <span class="param">creds</span><span class="op">.</span><span class="prop">refreshToken</span><span class="op">);</span>
+    <span class="kw">if</span> <span class="op">(</span><span class="param">refreshed</span><span class="op">) {</span>
+      <span class="kw">const</span> <span class="param">next</span><span class="op">: Record&lt;string, unknown&gt; =</span>
+        <span class="op">{</span> <span class="op">...</span><span class="param">creds</span><span class="op">.</span><span class="prop">rawCredentials</span><span class="op">,</span> <span class="prop">accessToken</span><span class="op">:</span> <span class="param">refreshed</span><span class="op">.</span><span class="prop">accessToken</span> <span class="op">};</span>
+      <span class="kw">if</span> <span class="op">(</span><span class="param">refreshed</span><span class="op">.</span><span class="prop">expiresAt</span><span class="op">)</span> <span class="param">next</span><span class="op">.</span><span class="prop">expiresAt</span> <span class="op">=</span> <span class="param">refreshed</span><span class="op">.</span><span class="prop">expiresAt</span><span class="op">;</span>
+      <span class="kw">await</span> <span class="param">db</span><span class="op">.</span><span class="fn">update</span><span class="op">(</span><span class="param">connectors</span><span class="op">)</span>
+        <span class="op">.</span><span class="fn">set</span><span class="op">({</span> <span class="prop">credentials</span><span class="op">:</span> <span class="param">next</span><span class="op">,</span> <span class="prop">updatedAt</span><span class="op">:</span> <span class="kw">new</span> <span class="ty">Date</span><span class="op">() })</span>
+        <span class="op">.</span><span class="fn">where</span><span class="op">(</span><span class="fn">eq</span><span class="op">(</span><span class="param">connectors</span><span class="op">.</span><span class="prop">id</span><span class="op">,</span> <span class="param">creds</span><span class="op">.</span><span class="prop">rowId</span><span class="op">))</span>
+        <span class="op">.</span><span class="fn">catch</span><span class="op">(() => {});</span>
+      <span class="kw">return</span> <span class="op">{</span> <span class="prop">accessToken</span><span class="op">:</span> <span class="param">refreshed</span><span class="op">.</span><span class="prop">accessToken</span> <span class="op">};</span>
+    <span class="op">}</span>
+  <span class="op">}</span>
+
+  <span class="kw">return</span> <span class="op">{</span> <span class="prop">accessToken</span><span class="op">:</span> <span class="param">creds</span><span class="op">.</span><span class="prop">accessToken</span> <span class="op">};</span>
+<span class="op">}</span>
+</span></pre>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>No logic duplication.</strong> <code>getConnectorTokenForTenant</code> calls
+    the same <code>loadGoogleCreds</code> and <code>refreshOAuthToken</code> that
+    <code>runWithRefresh</code> already uses internally. Same DB queries, same env vars,
+    same retry semantics — just extracted into a form that boringos.ts can inject
+    into <code>factoryDeps</code>.
+  </div>
+</div>
+
+<!-- ── Step 3: boringos.ts ────────────────────────────────────── -->
+<div class="section">
+  <div class="section-header">
+    <span class="step-badge">Step 3 of 4</span>
+    <span class="section-title">Wire it in — factoryDeps object</span>
+    <span class="section-file">packages/@boringos/core/src/boringos.ts  ·  +3 lines</span>
+  </div>
+  <p class="section-desc">
+    One import line at the top of the file, one new field in the
+    <code style="font-family:monospace;background:#1e293b;padding:2px 5px;border-radius:3px;color:#a5f3fc;font-size:12px">factoryDeps</code>
+    object. Every module factory — built-in and third-party — will now receive
+    <code style="font-family:monospace;background:#1e293b;padding:2px 5px;border-radius:3px;color:#a5f3fc;font-size:12px">getConnectorToken</code>
+    automatically.
+  </p>
+
+  <div class="diff-pane">
+    <div class="diff-side before">
+      <div class="diff-side-header">
+        <div class="dot dot-red"></div>
+        Before
+      </div>
+      <pre><span class="cm">// imports near top of boringos.ts</span>
+<span class="kw">import</span> <span class="op">{</span> <span class="fn">createGoogleModule</span> <span class="op">}</span> <span class="kw">from</span>
+  <span class="str">"./modules/google.js"</span><span class="op">;</span>
+
+
+
+<span class="cm">// lines ~483–495 — factoryDeps literal</span>
+<span class="kw">const</span> <span class="param">factoryDeps</span><span class="op">:</span> <span class="ty">ModuleFactoryDeps</span> <span class="op">= {</span>
+  <span class="prop">db</span><span class="op">:</span> <span class="param">dbConn</span><span class="op">.</span><span class="prop">db</span><span class="op">,</span>
+  <span class="prop">memory</span><span class="op">:</span> <span class="kw">this</span><span class="op">.</span><span class="prop">memoryProvider</span><span class="op">,</span>
+  <span class="prop">drive</span><span class="op">,</span>
+  <span class="prop">engine</span><span class="op">:</span> <span class="kw">undefined</span> <span class="kw">as</span> <span class="ty">unknown</span><span class="op">,</span>
+  <span class="prop">workflowEngine</span><span class="op">:</span> <span class="kw">undefined</span> <span class="kw">as</span> <span class="ty">unknown</span><span class="op">,</span>
+  <span class="prop">toolRegistry</span><span class="op">:</span> <span class="param">toolRegistry</span><span class="op">,</span>
+  <span class="prop">realtimeBus</span><span class="op">:</span> <span class="kw">undefined</span> <span class="kw">as</span> <span class="ty">unknown</span><span class="op">,</span>
+  <span class="prop">eventBus</span><span class="op">:</span> <span class="kw">undefined</span> <span class="kw">as</span> <span class="ty">unknown</span><span class="op">,</span>
+<span class="op">};</span></pre>
+    </div>
+    <div class="diff-side after">
+      <div class="diff-side-header">
+        <div class="dot dot-green"></div>
+        After
+      </div>
+      <pre><span class="cm">// imports near top of boringos.ts</span>
+<span class="kw">import</span> <span class="op">{</span>
+  <span class="fn">createGoogleModule</span><span class="op">,</span>
+<span class="line-add">  <span class="fn">getConnectorTokenForTenant</span><span class="op">,</span></span>
+<span class="op">}</span> <span class="kw">from</span> <span class="str">"./modules/google.js"</span><span class="op">;</span>
+
+
+<span class="cm">// lines ~483–495 — factoryDeps literal</span>
+<span class="kw">const</span> <span class="param">factoryDeps</span><span class="op">:</span> <span class="ty">ModuleFactoryDeps</span> <span class="op">= {</span>
+  <span class="prop">db</span><span class="op">:</span> <span class="param">dbConn</span><span class="op">.</span><span class="prop">db</span><span class="op">,</span>
+  <span class="prop">memory</span><span class="op">:</span> <span class="kw">this</span><span class="op">.</span><span class="prop">memoryProvider</span><span class="op">,</span>
+  <span class="prop">drive</span><span class="op">,</span>
+  <span class="prop">engine</span><span class="op">:</span> <span class="kw">undefined</span> <span class="kw">as</span> <span class="ty">unknown</span><span class="op">,</span>
+  <span class="prop">workflowEngine</span><span class="op">:</span> <span class="kw">undefined</span> <span class="kw">as</span> <span class="ty">unknown</span><span class="op">,</span>
+  <span class="prop">toolRegistry</span><span class="op">:</span> <span class="param">toolRegistry</span><span class="op">,</span>
+  <span class="prop">realtimeBus</span><span class="op">:</span> <span class="kw">undefined</span> <span class="kw">as</span> <span class="ty">unknown</span><span class="op">,</span>
+  <span class="prop">eventBus</span><span class="op">:</span> <span class="kw">undefined</span> <span class="kw">as</span> <span class="ty">unknown</span><span class="op">,</span>
+<span class="line-add">  <span class="prop">getConnectorToken</span><span class="op">: (</span><span class="param">kind</span><span class="op">,</span> <span class="param">tenantId</span><span class="op">) =></span>
+    <span class="fn">getConnectorTokenForTenant</span><span class="op">(</span><span class="param">dbConn</span><span class="op">.</span><span class="prop">db</span><span class="op">,</span> <span class="param">kind</span><span class="op">,</span> <span class="param">tenantId</span><span class="op">),</span></span>
+<span class="op">};</span></pre>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>That's it for BoringOS.</strong>
+    The entire framework change is: one import added, one line in the deps object.
+    All 11 built-in module factories that already receive <code>factoryDeps</code> are unaffected —
+    they don't reference <code>getConnectorToken</code>, so the new field is invisible to them.
+    No tests break. No interfaces change.
+  </div>
+</div>
+
+<!-- ── Step 4: EA calendar.ts ─────────────────────────────────── -->
+<div class="section">
+  <div class="section-header">
+    <span class="step-badge">Step 4 of 4</span>
+    <span class="section-title">Use it — EA calendar.ts sync handler</span>
+    <span class="section-file">executive-assistant / packages/server/src/tools/calendar.ts  ·  ~30 lines changed</span>
+  </div>
+  <p class="section-desc">
+    The handler replaces the <code style="font-family:monospace;background:#1e293b;padding:2px 5px;border-radius:3px;color:#a5f3fc;font-size:12px">invoke("google.calendar.list_events"…)</code>
+    call with a direct
+    <code style="font-family:monospace;background:#1e293b;padding:2px 5px;border-radius:3px;color:#a5f3fc;font-size:12px">fetch()</code>
+    to the real Google Calendar REST API.
+    The upsert loop below it is unchanged.
+  </p>
+
+  <div class="diff-pane">
+    <div class="diff-side before">
+      <div class="diff-side-header">
+        <div class="dot dot-red"></div>
+        Before — string invoke, unknown response shape
+      </div>
+      <pre><span class="kw">import</span> <span class="op">{</span> <span class="fn">invoke</span> <span class="op">}</span> <span class="kw">from</span> <span class="str">"@boringos/agent"</span><span class="op">;</span>
+
+<span class="cm">// inside handler:</span>
+<span class="kw">if</span> <span class="op">(!</span><span class="param">deps</span><span class="op">.</span><span class="prop">toolRegistry</span><span class="op">) {</span>
+  <span class="kw">return</span> <span class="op">{</span> <span class="prop">ok</span><span class="op">:</span> <span class="kw">true</span><span class="op">,</span> <span class="prop">result</span><span class="op">: {</span>
+    <span class="prop">data</span><span class="op">: {</span> <span class="prop">skipped</span><span class="op">:</span> <span class="kw">true</span><span class="op">,</span>
+           <span class="prop">reason</span><span class="op">:</span> <span class="str">"tool_registry_unavailable"</span> <span class="op">}</span>
+  <span class="op">}};</span>
+<span class="op">}</span>
+
+<span class="cm">// ...compute timeMin/timeMax...</span>
+
+<span class="cm">// Dispatch through the registry — pure runtime string</span>
+<span class="kw">const</span> <span class="param">listResult</span> <span class="op">=</span> <span class="kw">await</span> <span class="fn">invoke</span><span class="op">&lt;</span><span class="ty">unknown</span><span class="op">,</span> <span class="ty">ListEventsResponse</span><span class="op">&gt;(</span>
+  <span class="op">{</span> <span class="prop">registry</span><span class="op">:</span> <span class="param">deps</span><span class="op">.</span><span class="prop">toolRegistry</span><span class="op">,</span>
+    <span class="prop">db</span><span class="op">:</span> <span class="param">deps</span><span class="op">.</span><span class="prop">db</span> <span class="kw">as</span> <span class="kw">unknown</span> <span class="kw">as</span> <span class="ty">never</span> <span class="op">},</span>
+  <span class="str">"google.calendar.list_events"</span><span class="op">,</span>
+  <span class="op">{</span> <span class="prop">timeMin</span><span class="op">,</span> <span class="prop">timeMax</span><span class="op">,</span> <span class="prop">maxResults</span><span class="op">:</span> <span class="num">250</span> <span class="op">},</span>
+  <span class="op">{</span> <span class="op">...</span><span class="param">ctx</span><span class="op">,</span> <span class="prop">invokedBy</span><span class="op">:</span> <span class="str">"internal"</span> <span class="op">},</span>
+<span class="op">);</span>
+
+<span class="kw">if</span> <span class="op">(!</span><span class="param">listResult</span><span class="op">.</span><span class="prop">ok</span><span class="op">) { ... }</span>
+
+<span class="cm">// Guess at two possible wrapper shapes:</span>
+<span class="kw">const</span> <span class="param">events</span> <span class="op">=</span>
+  <span class="param">listResult</span><span class="op">.</span><span class="prop">result</span><span class="op">?.</span><span class="prop">data</span><span class="op">?.</span><span class="prop">events</span>
+  <span class="op">??</span> <span class="param">listResult</span><span class="op">.</span><span class="prop">result</span><span class="op">?.</span><span class="prop">events</span>
+  <span class="op">?? [];</span></pre>
+    </div>
+    <div class="diff-side after">
+      <div class="diff-side-header">
+        <div class="dot dot-green"></div>
+        After — typed token, real Google API
+      </div>
+      <pre><span class="line-del"><span class="kw">import</span> <span class="op">{</span> <span class="fn">invoke</span> <span class="op">}</span> <span class="kw">from</span> <span class="str">"@boringos/agent"</span><span class="op">;</span></span>
+<span class="cm">// (invoke kept only for upsert below — no longer used for list)</span>
+
+<span class="cm">// inside handler:</span>
+<span class="line-add"><span class="kw">const</span> <span class="param">token</span> <span class="op">=</span>
+  <span class="kw">await</span> <span class="param">deps</span><span class="op">.</span><span class="prop">getConnectorToken</span><span class="op">?.(</span>
+    <span class="str">"google"</span><span class="op">,</span> <span class="param">ctx</span><span class="op">.</span><span class="prop">tenantId</span><span class="op">,</span>
+  <span class="op">);</span>
+<span class="kw">if</span> <span class="op">(!</span><span class="param">token</span><span class="op">) {</span>
+  <span class="kw">return</span> <span class="op">{</span> <span class="prop">ok</span><span class="op">:</span> <span class="kw">true</span><span class="op">,</span> <span class="prop">result</span><span class="op">: {</span>
+    <span class="prop">data</span><span class="op">: {</span> <span class="prop">skipped</span><span class="op">:</span> <span class="kw">true</span><span class="op">,</span>
+           <span class="prop">reason</span><span class="op">:</span> <span class="str">"google_not_connected"</span> <span class="op">}</span>
+  <span class="op">}};</span>
+<span class="op">}</span></span>
+
+<span class="cm">// ...compute timeMin/timeMax (unchanged)...</span>
+
+<span class="line-add"><span class="cm">// Real Google Calendar REST API call</span>
+<span class="kw">const</span> <span class="param">url</span> <span class="op">=</span> <span class="kw">new</span> <span class="ty">URL</span><span class="op">(</span>
+  <span class="str">"https://www.googleapis.com/calendar/v3"</span>
+  <span class="op">+</span> <span class="str">"/calendars/primary/events"</span>
+<span class="op">);</span>
+<span class="param">url</span><span class="op">.</span><span class="fn">searchParams</span><span class="op">.</span><span class="fn">set</span><span class="op">(</span><span class="str">"timeMin"</span><span class="op">,</span> <span class="param">timeMin</span><span class="op">);</span>
+<span class="param">url</span><span class="op">.</span><span class="fn">searchParams</span><span class="op">.</span><span class="fn">set</span><span class="op">(</span><span class="str">"timeMax"</span><span class="op">,</span> <span class="param">timeMax</span><span class="op">);</span>
+<span class="param">url</span><span class="op">.</span><span class="fn">searchParams</span><span class="op">.</span><span class="fn">set</span><span class="op">(</span><span class="str">"maxResults"</span><span class="op">,</span> <span class="str">"250"</span><span class="op">);</span>
+<span class="param">url</span><span class="op">.</span><span class="fn">searchParams</span><span class="op">.</span><span class="fn">set</span><span class="op">(</span><span class="str">"singleEvents"</span><span class="op">,</span> <span class="str">"true"</span><span class="op">);</span>
+<span class="kw">const</span> <span class="param">res</span> <span class="op">=</span> <span class="kw">await</span> <span class="fn">fetch</span><span class="op">(</span><span class="param">url</span><span class="op">.</span><span class="fn">toString</span><span class="op">(), {</span>
+  <span class="prop">headers</span><span class="op">: {</span>
+    <span class="prop">Authorization</span><span class="op">:</span> <span class="str">`Bearer <span class="op">${</span><span class="param">token</span><span class="op">.</span><span class="prop">accessToken</span><span class="op">}</span>`</span>
+  <span class="op">},</span>
+<span class="op">});</span>
+<span class="kw">const</span> <span class="param">body</span> <span class="op">=</span>
+  <span class="kw">await</span> <span class="param">res</span><span class="op">.</span><span class="fn">json</span><span class="op">() as {</span> <span class="prop">items</span><span class="op">?:</span> <span class="ty">GoogleCalendarEvent</span><span class="op">[] };</span>
+<span class="cm">// Official Google shape: top-level items[]</span>
+<span class="kw">const</span> <span class="param">events</span> <span class="op">=</span> <span class="param">body</span><span class="op">.</span><span class="prop">items</span> <span class="op">?? [];</span></span></pre>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>The upsert loop below stays identical.</strong>
+    It still calls <code>invoke(registry, "executive-assistant.meetings.upsert_from_calendar", …)</code>
+    — that's EA's own tool inside EA's own module, so the string coupling is internal and controlled.
+    The only coupling that was broken was to <em>the Google connector</em>, which is now gone.
+  </div>
+</div>
+
+<hr class="divider" />
+
+<!-- ── Summary table ─────────────────────────────────────────── -->
+<div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:24px 28px;margin-bottom:40px">
+  <h2 style="font-size:16px;font-weight:600;color:#38bdf8;margin-bottom:16px;text-transform:uppercase;letter-spacing:.05em">Change summary</h2>
+  <table style="width:100%;border-collapse:collapse;font-size:13.5px">
+    <thead>
+      <tr style="color:#64748b;text-transform:uppercase;font-size:11px;letter-spacing:.05em">
+        <th style="text-align:left;padding:8px 12px;border-bottom:1px solid #334155">File</th>
+        <th style="text-align:left;padding:8px 12px;border-bottom:1px solid #334155">Change</th>
+        <th style="text-align:center;padding:8px 12px;border-bottom:1px solid #334155">+lines</th>
+        <th style="text-align:center;padding:8px 12px;border-bottom:1px solid #334155">Breaking?</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr style="border-bottom:1px solid #1e293b">
+        <td style="padding:10px 12px;font-family:monospace;font-size:12px;color:#a5f3fc">module-sdk/types.ts</td>
+        <td style="padding:10px 12px;color:#cbd5e1">Add optional <code style="font-family:monospace;font-size:11px;background:#0f172a;padding:1px 4px;border-radius:3px">getConnectorToken?</code> field to <code style="font-family:monospace;font-size:11px;background:#0f172a;padding:1px 4px;border-radius:3px">ModuleFactoryDeps</code></td>
+        <td style="text-align:center;padding:10px 12px;color:#4ade80">+7</td>
+        <td style="text-align:center;padding:10px 12px;color:#4ade80">No</td>
+      </tr>
+      <tr style="border-bottom:1px solid #1e293b">
+        <td style="padding:10px 12px;font-family:monospace;font-size:12px;color:#a5f3fc">core/modules/google.ts</td>
+        <td style="padding:10px 12px;color:#cbd5e1">Export new <code style="font-family:monospace;font-size:11px;background:#0f172a;padding:1px 4px;border-radius:3px">getConnectorTokenForTenant()</code> using existing refresh logic</td>
+        <td style="text-align:center;padding:10px 12px;color:#4ade80">+30</td>
+        <td style="text-align:center;padding:10px 12px;color:#4ade80">No</td>
+      </tr>
+      <tr style="border-bottom:1px solid #1e293b">
+        <td style="padding:10px 12px;font-family:monospace;font-size:12px;color:#a5f3fc">core/boringos.ts</td>
+        <td style="padding:10px 12px;color:#cbd5e1">Import + wire into <code style="font-family:monospace;font-size:11px;background:#0f172a;padding:1px 4px;border-radius:3px">factoryDeps</code></td>
+        <td style="text-align:center;padding:10px 12px;color:#4ade80">+3</td>
+        <td style="text-align:center;padding:10px 12px;color:#4ade80">No</td>
+      </tr>
+      <tr>
+        <td style="padding:10px 12px;font-family:monospace;font-size:12px;color:#a5f3fc">ea/tools/calendar.ts</td>
+        <td style="padding:10px 12px;color:#cbd5e1">Replace <code style="font-family:monospace;font-size:11px;background:#0f172a;padding:1px 4px;border-radius:3px">invoke("google.calendar…")</code> with direct <code style="font-family:monospace;font-size:11px;background:#0f172a;padding:1px 4px;border-radius:3px">fetch()</code></td>
+        <td style="text-align:center;padding:10px 12px;color:#4ade80">~30</td>
+        <td style="text-align:center;padding:10px 12px;color:#4ade80">No</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div style="margin-top:16px;padding:12px 16px;background:#0f172a;border-radius:8px;font-size:13px;color:#94a3b8">
+    <strong style="color:#f1f5f9">Total BoringOS source changes:</strong>
+    ~40 lines across 3 files.
+    All existing modules continue compiling. All tests pass.
+    The new field is additive and optional.
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>#76 — Categorization payoff options</title>
+<style>
+  :root {
+    --paper: #fbf8f3;
+    --paper-soft: #f5efe6;
+    --surface: #ffffff;
+    --ink: #1c1c1e;
+    --ink-soft: #3a3a3c;
+    --muted: #7a7470;
+    --rule: #d8d2c7;
+    --rule-soft: #ece6da;
+    --accent: #8a6a3f;
+    --accent-soft: #b89a6a;
+    --accent-tint: #f0e6d0;
+    --tag-meeting-ink: #4d3f6a;
+    --tag-meeting-bg: #ebe6f5;
+    --tag-event-ink: #6b4f25;
+    --tag-event-bg: #f3e9d4;
+    --tag-task-ink: #2f4f3f;
+    --tag-task-bg: #dde9e1;
+    --tag-trip-ink: #345268;
+    --tag-trip-bg: #d9e3ec;
+    --tag-ooo-ink: #6b3030;
+    --tag-ooo-bg: #ecdada;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Source Serif Pro", "Iowan Old Style", "Charter", "Georgia", serif;
+    font-size: 15.5px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+  .ui-sans {
+    font-family: -apple-system, BlinkMacSystemFont, "Inter", "Helvetica Neue", sans-serif;
+  }
+  .ui-mono {
+    font-family: "JetBrains Mono", "SF Mono", ui-monospace, Menlo, monospace;
+  }
+  header.page {
+    border-bottom: 1px solid var(--rule);
+    padding: 28px 40px 18px;
+    background: var(--paper);
+  }
+  .eyebrow {
+    font-family: -apple-system, sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  h1 {
+    margin: 0 0 6px 0;
+    font-size: 26px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .lede {
+    font-size: 15px;
+    color: var(--ink-soft);
+    max-width: 720px;
+    margin: 0;
+  }
+  nav.tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid var(--rule);
+    padding: 0 40px;
+    background: var(--paper-soft);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .tab-btn {
+    appearance: none;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    font-family: -apple-system, sans-serif;
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--muted);
+    padding: 14px 18px 12px;
+    cursor: pointer;
+    letter-spacing: 0;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .tab-btn:hover { color: var(--ink-soft); }
+  .tab-btn.active {
+    color: var(--ink);
+    border-bottom-color: var(--accent);
+  }
+  .tab-num {
+    display: inline-block;
+    font-family: "JetBrains Mono", monospace;
+    color: var(--muted);
+    font-size: 11px;
+    margin-right: 8px;
+  }
+  main {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 32px 40px 80px;
+  }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .panel-intro {
+    color: var(--ink-soft);
+    border-left: 2px solid var(--accent);
+    padding-left: 16px;
+    margin-bottom: 28px;
+    max-width: 760px;
+  }
+  .panel-intro .ui-sans {
+    font-size: 13px;
+    color: var(--muted);
+    display: block;
+    margin-bottom: 4px;
+  }
+  h2 {
+    font-size: 18px;
+    margin: 28px 0 12px;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+  }
+
+  /* Type chip */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: -apple-system, sans-serif;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 3px 8px 2px;
+    border-radius: 4px;
+    line-height: 1;
+  }
+  .chip.meeting { color: var(--tag-meeting-ink); background: var(--tag-meeting-bg); }
+  .chip.event   { color: var(--tag-event-ink);   background: var(--tag-event-bg); }
+  .chip.task    { color: var(--tag-task-ink);    background: var(--tag-task-bg); }
+  .chip.trip    { color: var(--tag-trip-ink);    background: var(--tag-trip-bg); }
+  .chip.ooo     { color: var(--tag-ooo-ink);     background: var(--tag-ooo-bg); }
+
+  /* OPTION 1: differentiated cards */
+  .card-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    overflow: hidden;
+    transition: box-shadow 0.18s;
+  }
+  .card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.04); }
+  .card-head {
+    padding: 14px 16px 8px;
+    border-bottom: 1px solid var(--rule-soft);
+  }
+  .card-time {
+    font-family: -apple-system, sans-serif;
+    font-size: 12px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .card-title {
+    font-size: 16.5px;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1.35;
+  }
+  .card-body { padding: 12px 16px 14px; }
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+    font-family: -apple-system, sans-serif;
+    font-size: 13px;
+    color: var(--ink-soft);
+  }
+  .row svg { color: var(--muted); flex-shrink: 0; }
+  .attendees {
+    display: flex;
+    margin: 8px 0 10px;
+  }
+  .avatar {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: var(--accent-tint);
+    color: var(--accent);
+    border: 2px solid var(--surface);
+    margin-left: -6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: -apple-system, sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+  }
+  .avatar:first-child { margin-left: 0; }
+  .join-btn {
+    appearance: none;
+    border: 1px solid var(--accent);
+    background: var(--accent);
+    color: white;
+    font-family: -apple-system, sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-top: 4px;
+  }
+  .brief-snippet {
+    font-style: italic;
+    color: var(--ink-soft);
+    font-size: 13.5px;
+    border-top: 1px dashed var(--rule);
+    padding-top: 8px;
+    margin-top: 8px;
+  }
+  .check-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .checkbox {
+    width: 18px; height: 18px;
+    border: 1.5px solid var(--rule);
+    border-radius: 4px;
+    background: white;
+    margin-top: 2px;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+  .duration-pill {
+    display: inline-block;
+    font-family: -apple-system, sans-serif;
+    font-size: 11px;
+    color: var(--muted);
+    background: var(--paper-soft);
+    padding: 2px 8px;
+    border-radius: 3px;
+  }
+  .leg-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px dashed var(--rule-soft);
+    font-family: -apple-system, sans-serif;
+    font-size: 13px;
+  }
+  .leg-row:last-child { border-bottom: none; }
+  .leg-row .leg-icon { color: var(--accent); width: 18px; text-align: center; }
+  .leg-row .leg-meta { color: var(--muted); font-size: 11.5px; margin-left: auto; }
+
+  .ooo-strip {
+    background: var(--tag-ooo-bg);
+    color: var(--tag-ooo-ink);
+    font-family: -apple-system, sans-serif;
+    font-size: 13px;
+    padding: 10px 14px;
+    border-left: 3px solid var(--tag-ooo-ink);
+    border-radius: 4px;
+    margin: 6px 0;
+  }
+
+  .compare-note {
+    background: var(--accent-tint);
+    border: 1px solid var(--accent-soft);
+    color: var(--ink-soft);
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-family: -apple-system, sans-serif;
+    font-size: 13px;
+    margin-top: 16px;
+  }
+  .compare-note strong { color: var(--ink); }
+
+  /* OPTION 2: prose voice */
+  .brief-prose {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    padding: 28px 32px;
+    max-width: 720px;
+    font-size: 16.5px;
+    line-height: 1.7;
+    color: var(--ink-soft);
+  }
+  .brief-prose p { margin: 0 0 14px; }
+  .brief-prose .label {
+    font-family: -apple-system, sans-serif;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .voice {
+    display: inline;
+    padding: 1px 4px;
+    border-radius: 3px;
+    transition: background 0.2s;
+  }
+  .voice.meeting { background: rgba(108, 93, 138, 0); }
+  .voice.event   { background: rgba(184, 154, 106, 0); }
+  .voice.task    { background: rgba(74, 106, 90, 0); }
+  .voice.trip    { background: rgba(94, 122, 138, 0); }
+  body.highlight-on .voice.meeting { background: var(--tag-meeting-bg); }
+  body.highlight-on .voice.event   { background: var(--tag-event-bg); }
+  body.highlight-on .voice.task    { background: var(--tag-task-bg); }
+  body.highlight-on .voice.trip    { background: var(--tag-trip-bg); }
+
+  .toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: -apple-system, sans-serif;
+    font-size: 13px;
+    color: var(--ink-soft);
+    cursor: pointer;
+    margin-bottom: 16px;
+  }
+
+  /* OPTION 3: conflict rules */
+  .scenario {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    padding: 18px 22px;
+    margin-bottom: 18px;
+  }
+  .scenario h3 {
+    margin: 0 0 12px;
+    font-family: -apple-system, sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .timeline {
+    position: relative;
+    background: var(--paper-soft);
+    height: 64px;
+    border-radius: 6px;
+    margin: 8px 0 14px;
+  }
+  .tl-bar {
+    position: absolute;
+    top: 8px;
+    bottom: 8px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    font-family: -apple-system, sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    color: white;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .tl-bar.meeting { background: var(--tag-meeting-ink); }
+  .tl-bar.event   { background: var(--tag-event-ink); }
+  .tl-bar.task    { background: var(--tag-task-ink); }
+  .verdict {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+  .verdict-col {
+    flex: 1;
+    padding: 12px 14px;
+    border-radius: 6px;
+    font-family: -apple-system, sans-serif;
+    font-size: 13px;
+  }
+  .verdict-col .label {
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 6px;
+    color: var(--muted);
+  }
+  .verdict-col.current { background: var(--paper-soft); color: var(--ink-soft); }
+  .verdict-col.proposed {
+    background: var(--accent-tint);
+    color: var(--ink);
+  }
+  .verdict-col.proposed .label { color: var(--accent); }
+  .verdict-col strong { font-weight: 600; }
+
+  /* OPTION 4: agent tools */
+  .day-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .day-col {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .day-col-head {
+    background: var(--paper-soft);
+    padding: 12px 16px;
+    font-family: -apple-system, sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    border-bottom: 1px solid var(--rule);
+  }
+  .day-list { padding: 8px 0; }
+  .day-item {
+    padding: 10px 16px;
+    border-bottom: 1px dashed var(--rule-soft);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .day-item:last-child { border-bottom: none; }
+  .day-item:hover { background: var(--paper-soft); }
+  .day-item.active { background: var(--accent-tint); }
+  .day-item .time {
+    font-family: -apple-system, sans-serif;
+    font-size: 12px;
+    color: var(--muted);
+    width: 56px;
+    flex-shrink: 0;
+  }
+  .day-item .title {
+    font-size: 14.5px;
+    color: var(--ink);
+    flex: 1;
+  }
+  .tape {
+    padding: 14px 16px;
+    background: #0f0f10;
+    color: #d4d2cc;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+    line-height: 1.65;
+    overflow-x: auto;
+    min-height: 220px;
+  }
+  .tape .tool-name { color: #8fb6e0; }
+  .tape .kind { color: #c4a36a; }
+  .tape .comment { color: #5a5a5e; }
+  .tape .ok { color: #82c19e; }
+
+  footer {
+    border-top: 1px solid var(--rule);
+    padding: 18px 40px;
+    color: var(--muted);
+    font-family: -apple-system, sans-serif;
+    font-size: 12px;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<header class="page">
+  <div class="eyebrow ui-sans">Brainstorm · TODO #76</div>
+  <h1>Where does the type actually change behavior?</h1>
+  <p class="lede">A fake Tuesday for Anish: a board review at 9, dentist at 11:30, lunch with Sarah, two solo tasks in the afternoon, a birthday dinner at 7, and he's flying to NYC midweek. Click the tabs to feel each option.</p>
+</header>
+
+<nav class="tabs ui-sans" role="tablist">
+  <button class="tab-btn active" data-tab="ui"><span class="tab-num">A</span>Different cards per kind</button>
+  <button class="tab-btn" data-tab="prose"><span class="tab-num">B</span>Different brief voice</button>
+  <button class="tab-btn" data-tab="conflict"><span class="tab-num">C</span>Different conflict rules</button>
+  <button class="tab-btn" data-tab="agent"><span class="tab-num">D</span>Type-specific agent tools</button>
+</nav>
+
+<main>
+
+  <!-- ───────────────────── PANEL A: cards ───────────────────── -->
+  <section class="panel active" id="panel-ui">
+    <div class="panel-intro">
+      <span class="ui-sans">Option A · UI</span>
+      Each kind renders with its own visual treatment. Same time slot, different anatomy — what you see is shaped by what kind of thing it is. Today every entry in /executive shares the FocusCard look.
+    </div>
+
+    <h2 class="ui-sans">A Tuesday, rendered five ways</h2>
+    <div class="card-row">
+
+      <!-- MEETING -->
+      <div class="card">
+        <div class="card-head">
+          <div class="card-time ui-sans">9:00 – 10:00 PST · <span class="chip meeting">Meeting</span></div>
+          <div class="card-title">Q3 board review</div>
+        </div>
+        <div class="card-body">
+          <div class="attendees">
+            <div class="avatar">RP</div>
+            <div class="avatar">MK</div>
+            <div class="avatar">SA</div>
+            <div class="avatar">+4</div>
+          </div>
+          <div class="row ui-sans">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+            zoom.us/j/8472 · join
+          </div>
+          <button class="join-btn">Join now</button>
+          <div class="brief-snippet">"Rohit's pre-read flags two redline asks on the SAFE terms — page 6. Maya will likely push back on the burn slide; have the cohort math ready."</div>
+        </div>
+      </div>
+
+      <!-- EVENT -->
+      <div class="card">
+        <div class="card-head">
+          <div class="card-time ui-sans">13:00 – 14:30 PST · <span class="chip event">Event</span></div>
+          <div class="card-title">Lunch with Sarah</div>
+        </div>
+        <div class="card-body">
+          <div class="row ui-sans">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            Quince · 470 Pacific Ave
+          </div>
+          <div class="row ui-sans">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/><path d="M5 21v-2a4 4 0 014-4h6a4 4 0 014 4v2"/></svg>
+            With Sarah Aldrich · friend, last seen Feb
+          </div>
+          <div class="brief-snippet">"She mentioned the Tahoe house plans in her last note. The chef's table is hers — Marcus knows."</div>
+        </div>
+      </div>
+
+      <!-- TASK -->
+      <div class="card">
+        <div class="card-head">
+          <div class="card-time ui-sans">14:30 – 16:00 PST · <span class="chip task">Task</span></div>
+          <div class="card-title">
+            <span class="check-row">
+              <span class="checkbox"></span>
+              <span>Review Series B docs</span>
+            </span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="row ui-sans">
+            <span class="duration-pill">1h 30m focus block</span>
+          </div>
+          <div class="row ui-sans">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
+            Linked: SAFE_terms_v3.pdf
+          </div>
+          <div class="brief-snippet">"Rohit needs your markup by Friday. Comparable to the BMV deal last year."</div>
+        </div>
+      </div>
+
+      <!-- TRIP -->
+      <div class="card">
+        <div class="card-head">
+          <div class="card-time ui-sans">Wed 17 – Fri 19 May · <span class="chip trip">Trip</span></div>
+          <div class="card-title">NYC · 3 nights</div>
+        </div>
+        <div class="card-body">
+          <div class="leg-row">
+            <span class="leg-icon">✈</span>
+            <span>SFO → JFK · UA 416 · 06:30</span>
+            <span class="leg-meta">Wed</span>
+          </div>
+          <div class="leg-row">
+            <span class="leg-icon">🏨</span>
+            <span>The Mark · suite 1402</span>
+            <span class="leg-meta">3 nights</span>
+          </div>
+          <div class="leg-row">
+            <span class="leg-icon">✈</span>
+            <span>JFK → SFO · UA 421 · 22:00</span>
+            <span class="leg-meta">Fri</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- OOO -->
+      <div class="card">
+        <div class="card-head">
+          <div class="card-time ui-sans">Fri 19 May · <span class="chip ooo">OOO</span></div>
+          <div class="card-title">Personal day</div>
+        </div>
+        <div class="card-body">
+          <div class="ooo-strip">You're marked unavailable. 4 meetings auto-declined; 2 still on your calendar (you accepted before this was added).</div>
+          <div class="row ui-sans" style="color:var(--muted);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+            Auto-reply enabled
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="compare-note">
+      <strong>Today:</strong> all five render as the same FocusCard with [time / title / location / attendees / brief]. <br>
+      <strong>With option A:</strong> each kind gets its own anatomy — meetings have a Join button, tasks have a checkbox, trips have legs, OOO is a strip. The frame tells you what kind of demand on your attention this is.
+    </div>
+  </section>
+
+
+  <!-- ───────────────────── PANEL B: prose ───────────────────── -->
+  <section class="panel" id="panel-prose">
+    <div class="panel-intro">
+      <span class="ui-sans">Option B · Brief voice</span>
+      Agent's day-brief is one paragraph, but the sentences in it shift voice depending on what kind of thing they're describing. Meetings get strategic framing. Events get personal framing. Tasks get pragmatic framing.
+    </div>
+
+    <label class="toggle ui-sans">
+      <input type="checkbox" id="hl-toggle"> Highlight which sentence is in which voice
+    </label>
+
+    <div class="brief-prose">
+      <div class="label">Tuesday · 06:42</div>
+      <p>
+        Good morning. The day starts at the table — <span class="voice meeting">Q3 board review at 9 with Rohit, Maya, and the rest; Rohit's pre-read flags two redlines on the SAFE terms, page six, and Maya will push back on the burn slide so have the cohort math ready.</span> Buffer drops at 10:30.
+      </p>
+      <p>
+        <span class="voice task">Dentist at 11:30 — checkup, twenty minutes, then back.</span> <span class="voice event">Sarah at Quince at one; she mentioned Tahoe in her last note and the chef's table is hers, Marcus knows.</span>
+      </p>
+      <p>
+        Afternoon is quieter. <span class="voice task">Series B docs from 2:30 — Rohit needs your markup by Friday, the BMV deal last year is the right reference.</span> <span class="voice task">School pickup at 4, fifteen-minute window.</span>
+      </p>
+      <p>
+        <span class="voice event">Atelier Crenn at seven for Anish's birthday — twelve confirmed, the wine pairing was added on the booking.</span>
+      </p>
+      <p>
+        <span class="voice trip">Wednesday you're wheels-up at six-thirty to JFK; the Mark for three nights, suite 1402.</span> <span class="voice meeting">Calendar's compressed in NYC — three back-to-backs Thursday.</span>
+      </p>
+    </div>
+
+    <div class="compare-note">
+      <strong>Today:</strong> the brief is one undifferentiated voice that lists everything with the same texture. <br>
+      <strong>With option B:</strong> the agent uses kind as a register switch — strategic for meetings, warm-personal for events, terse for tasks, logistical for trips. Reading flows better because each sentence already signals what kind of demand it is.
+    </div>
+  </section>
+
+
+  <!-- ───────────────────── PANEL C: conflicts ───────────────────── -->
+  <section class="panel" id="panel-conflict">
+    <div class="panel-intro">
+      <span class="ui-sans">Option C · Conflict rules</span>
+      Right now any two overlapping items is a conflict the user has to resolve. With kinds, the system can have an opinion — some overlaps are real conflicts, some are fine.
+    </div>
+
+    <div class="scenario">
+      <h3 class="ui-sans">Scenario 1 — board review overlaps with the dentist</h3>
+      <div class="timeline">
+        <div class="tl-bar meeting" style="left:8%; width:52%;">9:00 — Q3 board review (meeting)</div>
+        <div class="tl-bar task"    style="left:18%; width:14%; top:36px; bottom:auto; height:24px;">9:30 — dentist (task)</div>
+      </div>
+      <div class="verdict">
+        <div class="verdict-col current">
+          <div class="label ui-sans">Today</div>
+          <strong>⚠ Conflict.</strong> Two overlapping items, surfaced as needing user resolution. No opinion on which matters more.
+        </div>
+        <div class="verdict-col proposed">
+          <div class="label ui-sans">With option C</div>
+          <strong>⚠ Hard conflict.</strong> A meeting and a task overlap — and meetings outrank tasks. The system flags it and suggests "reschedule the dentist; the board review wins."
+        </div>
+      </div>
+    </div>
+
+    <div class="scenario">
+      <h3 class="ui-sans">Scenario 2 — two solo tasks back-to-back</h3>
+      <div class="timeline">
+        <div class="tl-bar task" style="left:8%; width:32%;">3:00 — dentist (task)</div>
+        <div class="tl-bar task" style="left:32%; width:24%; top:36px; bottom:auto; height:24px;">3:20 — pick up dry cleaning (task)</div>
+      </div>
+      <div class="verdict">
+        <div class="verdict-col current">
+          <div class="label ui-sans">Today</div>
+          <strong>⚠ Conflict.</strong> Same surfacing as scenario 1 — overlap == conflict, no nuance.
+        </div>
+        <div class="verdict-col proposed">
+          <div class="label ui-sans">With option C</div>
+          <strong>✓ Fine.</strong> Two tasks can stack — the user will just do them in sequence. No alert; the brief notes "two errands cluster around 3."
+        </div>
+      </div>
+    </div>
+
+    <div class="scenario">
+      <h3 class="ui-sans">Scenario 3 — birthday dinner during a meeting block someone added</h3>
+      <div class="timeline">
+        <div class="tl-bar event"   style="left:8%; width:42%;">7:00 — Atelier Crenn (event)</div>
+        <div class="tl-bar meeting" style="left:30%; width:24%; top:36px; bottom:auto; height:24px;">7:30 — investor call (meeting)</div>
+      </div>
+      <div class="verdict">
+        <div class="verdict-col current">
+          <div class="label ui-sans">Today</div>
+          <strong>⚠ Conflict.</strong> Same alert as everything else.
+        </div>
+        <div class="verdict-col proposed">
+          <div class="label ui-sans">With option C</div>
+          <strong>⚠ Soft conflict, with a recommendation.</strong> Personal event vs. work meeting — system suggests "decline or move the call; the dinner is personal and already committed." Not auto-resolved, but the framing tells you the right answer.
+        </div>
+      </div>
+    </div>
+
+    <div class="compare-note">
+      <strong>Today:</strong> overlap is overlap, the user resolves every one. <br>
+      <strong>With option C:</strong> the rule for "is this a conflict?" depends on the pair of kinds. Most stacks (task+task, task+event) become non-issues. Real conflicts (meeting+meeting, event+meeting) get sharper framing.
+    </div>
+  </section>
+
+
+  <!-- ───────────────────── PANEL D: agent tools ───────────────────── -->
+  <section class="panel" id="panel-agent">
+    <div class="panel-intro">
+      <span class="ui-sans">Option D · Agent context</span>
+      The skill orchestrates which tools to call based on which kinds are present in the day. Click an item on the left to see what the agent invokes for it.
+    </div>
+
+    <div class="day-grid">
+      <div class="day-col">
+        <div class="day-col-head ui-sans">Tuesday at a glance</div>
+        <div class="day-list ui-sans" id="agent-day-list">
+          <div class="day-item active" data-kind="meeting" data-title="Q3 board review">
+            <span class="time">9:00</span><span class="title">Q3 board review</span><span class="chip meeting">M</span>
+          </div>
+          <div class="day-item" data-kind="task" data-title="Dentist">
+            <span class="time">11:30</span><span class="title">Dentist</span><span class="chip task">T</span>
+          </div>
+          <div class="day-item" data-kind="event" data-title="Lunch with Sarah">
+            <span class="time">13:00</span><span class="title">Lunch with Sarah</span><span class="chip event">E</span>
+          </div>
+          <div class="day-item" data-kind="task" data-title="Review Series B docs">
+            <span class="time">14:30</span><span class="title">Review Series B docs</span><span class="chip task">T</span>
+          </div>
+          <div class="day-item" data-kind="event" data-title="Birthday dinner">
+            <span class="time">19:00</span><span class="title">Atelier Crenn</span><span class="chip event">E</span>
+          </div>
+          <div class="day-item" data-kind="trip" data-title="NYC trip">
+            <span class="time">Wed</span><span class="title">NYC trip (3 nights)</span><span class="chip trip">Tr</span>
+          </div>
+        </div>
+      </div>
+      <div class="day-col">
+        <div class="day-col-head ui-sans">Tools the agent fires for this item</div>
+        <div class="tape" id="agent-tape">
+<span class="comment"># Q3 board review · meeting</span>
+<span class="tool-name">meetings.get</span>(id) → attendees, link, thread_id
+<span class="tool-name">email_anchors.list</span>(thread_id) → 7 messages
+<span class="tool-name">thread_excerpts.read</span>(latest 3) → pre-read context
+<span class="tool-name">people.lookup</span>(attendees) → relationship memory
+<span class="tool-name">memory.recall</span>("Q3 metrics, redline patterns")
+<span class="comment"># skipped — not relevant to a meeting:</span>
+<span class="comment">#   weather.get, trips.get, ooo.list, places.lookup</span>
+
+<span class="ok">→ brief: strategic framing, 2-3 sentences</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="compare-note">
+      <strong>Today:</strong> the skill calls the same fixed set of tools for every item — meetings.get, calendar.list, weather, trips, ooo, conflicts. <br>
+      <strong>With option D:</strong> the kind decides what to fetch. Meetings pull attendee history. Events pull venue + relationship memory. Tasks pull linked docs + deadline. Trips pull legs + ground transport. Less wasted context, sharper enrichment.
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  Brainstorm clarifier · TODO #76 · executive-assistant<br>
+  Not implementation. Close the tab when you've picked the options you want.
+</footer>
+
+<script>
+  // Tab switching
+  const tabs = document.querySelectorAll('.tab-btn');
+  const panels = document.querySelectorAll('.panel');
+  tabs.forEach(btn => {
+    btn.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.remove('active'));
+      panels.forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+    });
+  });
+
+  // Highlight toggle on prose panel
+  const hl = document.getElementById('hl-toggle');
+  hl.addEventListener('change', () => {
+    document.body.classList.toggle('highlight-on', hl.checked);
+  });
+
+  // Agent panel: tool tapes per kind
+  const tapes = {
+    meeting: `<span class="comment"># Q3 board review · meeting</span>
+<span class="tool-name">meetings.get</span>(id) → attendees, link, thread_id
+<span class="tool-name">email_anchors.list</span>(thread_id) → 7 messages
+<span class="tool-name">thread_excerpts.read</span>(latest 3) → pre-read context
+<span class="tool-name">people.lookup</span>(attendees) → relationship memory
+<span class="tool-name">memory.recall</span>("Q3 metrics, redline patterns")
+<span class="comment"># skipped — not relevant to a meeting:</span>
+<span class="comment">#   weather.get, trips.get, ooo.list, places.lookup</span>
+
+<span class="ok">→ brief: strategic framing, 2-3 sentences</span>`,
+    event: `<span class="comment"># Lunch with Sarah · event</span>
+<span class="tool-name">people.lookup</span>("Sarah Aldrich") → last interaction Feb, "friend"
+<span class="tool-name">places.lookup</span>("Quince") → past visits, preferred table
+<span class="tool-name">memory.recall</span>("Sarah, recent topics") → Tahoe house plans
+<span class="comment"># skipped — not relevant to an event:</span>
+<span class="comment">#   email_anchors.list, conference_link.check</span>
+
+<span class="ok">→ brief: warm-personal framing, 1-2 sentences</span>`,
+    task: `<span class="comment"># Review Series B docs · task</span>
+<span class="tool-name">attachments.list</span>(item_id) → SAFE_terms_v3.pdf
+<span class="tool-name">memory.recall</span>("BMV deal terms last year") → precedent
+<span class="tool-name">action_items.related</span>("Series B") → 3 pending
+<span class="comment"># skipped — not relevant to a task:</span>
+<span class="comment">#   people.lookup, places.lookup, conference_link.check</span>
+
+<span class="ok">→ brief: pragmatic framing, 1 sentence + deadline</span>`,
+    trip: `<span class="comment"># NYC trip · 3 nights</span>
+<span class="tool-name">trips.get</span>(id) → legs, hotel, ground
+<span class="tool-name">trip_legs.list</span>(trip_id) → SFO→JFK, hotel, JFK→SFO
+<span class="tool-name">weather.get</span>("New York", Wed-Fri) → forecast
+<span class="tool-name">memory.recall</span>("NYC patterns, Mark suite preferences")
+<span class="comment"># skipped — not relevant to a trip envelope:</span>
+<span class="comment">#   email_anchors.list, conflicts.list</span>
+
+<span class="ok">→ brief: logistical framing</span>`,
+  };
+
+  document.querySelectorAll('#agent-day-list .day-item').forEach(item => {
+    item.addEventListener('click', () => {
+      document.querySelectorAll('#agent-day-list .day-item').forEach(i => i.classList.remove('active'));
+      item.classList.add('active');
+      const kind = item.dataset.kind;
+      document.getElementById('agent-tape').innerHTML = tapes[kind] || tapes.meeting;
+    });
+  });
+</script>
+
+</body>
+</html>

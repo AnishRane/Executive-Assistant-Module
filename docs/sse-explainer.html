@@ -1,0 +1,582 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SSE bus — a phone line you don't have to keep redialing</title>
+<style>
+  :root {
+    --paper: #faf7f1;
+    --ink: #1a1814;
+    --ink-soft: #4a4640;
+    --ink-faint: #7a7468;
+    --rule: #d8cfbe;
+    --rule-soft: #e8e0cf;
+    --accent: #8a3a1f;
+    --accent-soft: #f3e0d4;
+    --green: #2f6b3a;
+    --green-soft: #e3eedf;
+    --red: #9b2c1f;
+    --red-soft: #f3dcd7;
+    --amber: #a86417;
+    --amber-soft: #f3e6c8;
+    --chip-bg-soft: #f5efe1;
+  }
+  html { background: var(--paper); }
+  body {
+    margin: 0;
+    font-family: "Georgia", "Iowan Old Style", "Charter", "Times New Roman", serif;
+    color: var(--ink);
+    line-height: 1.6;
+    font-size: 16.5px;
+  }
+  .mono { font-family: "JetBrains Mono", "SF Mono", Menlo, monospace; }
+  .page { max-width: 920px; margin: 0 auto; padding: 56px 28px 96px; }
+
+  header.cover { border-bottom: 1px solid var(--rule); padding-bottom: 24px; margin-bottom: 36px; }
+  .eyebrow {
+    font-family: "JetBrains Mono", "SF Mono", Menlo, monospace;
+    font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--ink-faint); margin-bottom: 12px;
+  }
+  h1 {
+    font-size: 34px; font-weight: 500; line-height: 1.15;
+    letter-spacing: -0.01em; margin: 0 0 12px;
+  }
+  .deck { color: var(--ink-soft); font-size: 17px; max-width: 700px; }
+
+  h2 {
+    font-size: 23px; font-weight: 500; margin: 52px 0 14px;
+    letter-spacing: -0.005em;
+  }
+  h3 {
+    font-size: 18px; font-weight: 500; margin: 28px 0 8px;
+  }
+  h4 {
+    font-family: "JetBrains Mono", "SF Mono", Menlo, monospace;
+    font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase;
+    color: var(--ink-faint); margin: 0 0 8px; font-weight: 500;
+  }
+  p { margin: 0 0 14px; }
+  ul, ol { padding-left: 20px; margin: 0 0 16px; }
+  li { margin-bottom: 4px; }
+
+  /* Diagrams — monospace text in soft boxes */
+  .diagram {
+    font-family: "JetBrains Mono", "SF Mono", Menlo, monospace;
+    font-size: 12.5px; line-height: 1.7;
+    background: white;
+    border: 1px dashed var(--rule);
+    padding: 16px 20px;
+    margin: 14px 0;
+    white-space: pre;
+    overflow-x: auto;
+    color: var(--ink);
+  }
+  .diagram.muted { background: var(--chip-bg-soft); border-color: var(--rule-soft); }
+  .diagram .ann {
+    color: var(--ink-faint);
+    font-style: italic;
+  }
+
+  /* Comparison table */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 14px 0 24px;
+    font-size: 14.5px;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--rule-soft);
+    vertical-align: top;
+  }
+  th {
+    font-family: "JetBrains Mono", "SF Mono", Menlo, monospace;
+    font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--ink-faint); font-weight: 500;
+    border-bottom: 1px solid var(--rule);
+  }
+  td.mono { font-family: "JetBrains Mono", "SF Mono", Menlo, monospace; font-size: 13px; }
+  td.good { background: var(--green-soft); }
+  td.bad { background: var(--red-soft); }
+  td.amber { background: var(--amber-soft); }
+
+  /* Code block */
+  pre {
+    font-family: "JetBrains Mono", "SF Mono", Menlo, monospace;
+    font-size: 12.5px; line-height: 1.5;
+    background: var(--chip-bg-soft);
+    border: 1px solid var(--rule-soft);
+    padding: 12px 14px;
+    margin: 12px 0;
+    overflow-x: auto;
+    color: var(--ink);
+  }
+  code {
+    font-family: "JetBrains Mono", "SF Mono", Menlo, monospace;
+    font-size: 13px; background: var(--chip-bg-soft);
+    padding: 1px 5px; border-radius: 2px; color: var(--ink);
+  }
+
+  /* Callouts */
+  .callout {
+    border-left: 3px solid var(--accent);
+    padding: 10px 16px;
+    margin: 16px 0;
+    background: var(--paper);
+    font-size: 15px;
+    color: var(--ink-soft);
+  }
+  .callout strong { color: var(--ink); }
+
+  /* Side-by-side */
+  .twocol {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 16px 0;
+  }
+  .panel {
+    border: 1px solid var(--rule-soft);
+    padding: 14px 16px;
+    background: var(--paper);
+  }
+  .panel h5 {
+    font-family: "JetBrains Mono", "SF Mono", Menlo, monospace;
+    font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase;
+    color: var(--ink-faint); margin: 0 0 8px; font-weight: 500;
+  }
+
+  /* Scene like execution_flow */
+  .scene { border: 1px solid var(--rule); margin: 0 0 24px; background: white; }
+  .scene > header {
+    background: var(--chip-bg-soft);
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--rule);
+    display: flex; align-items: center; gap: 14px;
+  }
+  .scene > header .num {
+    font-family: "JetBrains Mono", "SF Mono", Menlo, monospace;
+    font-size: 12px; color: var(--ink-faint); letter-spacing: 0.1em;
+  }
+  .scene > header .title { font-size: 18px; font-weight: 500; flex: 1; }
+  .scene > .body { padding: 18px 22px 6px; }
+
+  nav.toc {
+    border: 1px solid var(--rule);
+    padding: 18px 22px;
+    margin: 0 0 36px;
+    background: white;
+  }
+  nav.toc h4 { margin: 0 0 10px; }
+  nav.toc ol { margin: 0; padding-left: 22px; font-size: 14.5px; }
+  nav.toc a { color: var(--ink); text-decoration: none; }
+  nav.toc a:hover { color: var(--accent); text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<header class="cover">
+  <div class="eyebrow">Concepts · the SSE bus</div>
+  <h1>A phone line you don't have to keep redialing</h1>
+  <p class="deck">
+    Server-Sent Events explained without jargon. Why polling is wasteful,
+    what a "bus" is in this context, and what changes if the EA module
+    starts publishing on it. With pictures.
+  </p>
+</header>
+
+<nav class="toc">
+  <h4>Contents</h4>
+  <ol>
+    <li><a href="#polling">The problem with polling — and why it feels slow</a></li>
+    <li><a href="#sse">SSE — the phone line that stays open</a></li>
+    <li><a href="#bus">"Bus" — one phone line, many listeners</a></li>
+    <li><a href="#compare">SSE vs polling vs WebSockets</a></li>
+    <li><a href="#boringos">How BoringOS uses the SSE bus today</a></li>
+    <li><a href="#ea">What changes if the EA publishes on it</a></li>
+    <li><a href="#try">Try it yourself — a 20-line example</a></li>
+  </ol>
+</nav>
+
+<!-- ─────────── 1. POLLING ─────────── -->
+<h2 id="polling">1. The problem with polling — and why it feels slow</h2>
+
+<p>
+  Right now the dossier page works like this: every 60 seconds, the
+  browser asks the server, <em>"Anything new?"</em> The server answers
+  <em>"No, same as last time"</em> — about 95% of the time. Once in a
+  while it answers <em>"Yes, here's a meeting that moved."</em>
+</p>
+
+<div class="diagram"><span class="ann">                          time →</span>
+
+  Browser  ─── "anything new?" ──► Server  : "no"
+              ←── 60 s of waiting ──
+  Browser  ─── "anything new?" ──► Server  : "no"
+              ←── 60 s of waiting ──
+  Browser  ─── "anything new?" ──► Server  : "no"
+              ←── 60 s of waiting ──
+  Browser  ─── "anything new?" ──► Server  : <strong>YES — meeting moved</strong>
+              <span class="ann">(this is the only useful call)</span></div>
+
+<p>
+  Two costs:
+</p>
+
+<ul>
+  <li><strong>Latency.</strong> Worst case, you wait 60 seconds for a change you'd want to see in 2 seconds. For someone managing back-to-back meetings, that's an eternity.</li>
+  <li><strong>Waste.</strong> The other 95% of those requests do nothing useful — they just keep checking. The server has to handle them; the browser uses up battery; the network gets noise.</li>
+</ul>
+
+<p>
+  Polling is asking <em>"Are we there yet?"</em> over and over on a road
+  trip. There's a better way: have the driver tell you when we arrive.
+</p>
+
+<!-- ─────────── 2. SSE ─────────── -->
+<h2 id="sse">2. SSE — the phone line that stays open</h2>
+
+<p>
+  <strong>Server-Sent Events (SSE)</strong> flips the conversation.
+  The browser calls the server <em>once</em>, says
+  <em>"keep me on the line"</em>, and then waits. The server holds the
+  line open and pushes messages down it whenever something happens. No
+  more re-dialling every minute.
+</p>
+
+<div class="diagram"><span class="ann">                          time →</span>
+
+  Browser  ─── "subscribe to /events" ──► Server
+                                          <span class="ann">↓ connection stays open</span>
+                                          ─ (silence — nothing's happening) ─
+                                          ─ (silence) ──────────────────────
+                                          ─ (silence) ──────────────────────
+                                          <span class="ann">↓ something changes</span>
+           ◄─── "meeting moved: id=abc, new start=15:30" ───
+                                          ─ (silence) ──────────────────────
+                                          <span class="ann">↓ something else changes</span>
+           ◄─── "conflict detected: 30 min overlap" ────
+                                          ─ (silence) ──────────────────────</div>
+
+<p>
+  The connection isn't doing anything most of the time — and that's the
+  point. The browser isn't checking. The server isn't answering "no". Both
+  are idle until there's actually news. When there is, it arrives within
+  <em>milliseconds</em> rather than up-to-60-seconds.
+</p>
+
+<p>
+  Under the hood SSE is just a regular HTTP response that never finishes.
+  The server writes <code>data: …</code> lines to it whenever it has
+  something to say, and the browser reads them as they arrive.
+</p>
+
+<div class="callout">
+  <strong>"Server-Sent" means one-way.</strong> The server can push to
+  the browser, but the browser can't push to the server through the same
+  channel. The browser still uses normal HTTP requests for that (when
+  you click "Resolve conflict", that's a regular POST). SSE is purely
+  for "here's something new" notifications.
+</div>
+
+<!-- ─────────── 3. BUS ─────────── -->
+<h2 id="bus">3. "Bus" — one phone line, many listeners</h2>
+
+<p>
+  So far we've described one browser, one server. But what if multiple
+  pages are open? What if the admin dashboard wants to see the same events?
+  What if a future "Memory" page wants to react to the same conflicts?
+</p>
+
+<p>
+  Instead of every page having its own private phone line for every
+  event type, the server keeps <strong>one shared channel</strong> —
+  the <em>bus</em> — and any browser that's interested subscribes to it.
+  Inside the server, components <em>publish</em> events to the bus, and
+  the bus broadcasts to every connected subscriber.
+</p>
+
+<div class="diagram">     Publishers                              Subscribers
+                                  ╔══════════╗
+   ┌──────────────┐ publish ───►  ║          ║  ──► ┌──────────────────┐
+   │ EA module    │               ║          ║      │ /executive page  │
+   └──────────────┘               ║          ║      └──────────────────┘
+                                  ║          ║
+   ┌──────────────┐ publish ───►  ║   BUS    ║  ──► ┌──────────────────┐
+   │ Triage agent │               ║          ║      │ /memory page     │
+   └──────────────┘               ║          ║      └──────────────────┘
+                                  ║          ║
+   ┌──────────────┐ publish ───►  ║          ║  ──► ┌──────────────────┐
+   │ Workflow run │               ║          ║      │ Admin dashboard  │
+   └──────────────┘               ╚══════════╝      └──────────────────┘
+       (server-side)                                   (in browsers)</div>
+
+<p>
+  The bus is the metaphor that makes this useful — pages don't have to
+  know who's publishing, publishers don't have to know who's listening.
+  Add a new publisher (a new module) and existing pages see its events
+  automatically. Add a new subscriber (a new page) and it picks up
+  everything the bus is carrying without any wiring change.
+</p>
+
+<p>
+  Pages can also filter — "I only care about events with
+  <code>kind=meeting_updated</code>". The bus delivers everything; the
+  page picks what's relevant.
+</p>
+
+<!-- ─────────── 4. COMPARE ─────────── -->
+<h2 id="compare">4. SSE vs polling vs WebSockets — when does each fit?</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th></th>
+      <th>Polling</th>
+      <th>SSE</th>
+      <th>WebSockets</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>How it talks</th>
+      <td>Browser keeps asking</td>
+      <td class="good">Server keeps a one-way line open</td>
+      <td>Two-way line open</td>
+    </tr>
+    <tr>
+      <th>Latency for changes</th>
+      <td class="bad">Up to one polling interval (often 60 s)</td>
+      <td class="good">Milliseconds</td>
+      <td class="good">Milliseconds</td>
+    </tr>
+    <tr>
+      <th>Wasted "no change" traffic</th>
+      <td class="bad">A lot — every poll, every tab</td>
+      <td class="good">None</td>
+      <td class="good">None</td>
+    </tr>
+    <tr>
+      <th>Complexity</th>
+      <td class="good">Trivial — any HTTP works</td>
+      <td class="good">Simple — plain HTTP + EventSource API</td>
+      <td class="amber">More moving parts; needs WS server, framing, ping/pong</td>
+    </tr>
+    <tr>
+      <th>Auto-reconnects on drop?</th>
+      <td>—</td>
+      <td class="good">Yes, built into browser</td>
+      <td class="amber">You write the reconnect logic</td>
+    </tr>
+    <tr>
+      <th>Browser → server messages</th>
+      <td>Yes — normal requests</td>
+      <td class="amber">No on the SSE channel itself; use a normal POST for actions</td>
+      <td class="good">Yes — same channel</td>
+    </tr>
+    <tr>
+      <th>Best for</th>
+      <td>Occasional state checks</td>
+      <td class="good">Notifications, dashboards, dossiers, live tickers</td>
+      <td>Chat, multiplayer games, collaborative editors</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>
+  For the dossier, <strong>SSE is the right tool</strong>. The browser
+  doesn't need to push anything through the live channel — clicks and
+  edits already use regular POSTs to existing tools. We just want
+  push-from-server when meetings change, conflicts appear, or briefs
+  refresh. SSE does exactly that, simpler than WebSockets, faster than
+  polling.
+</p>
+
+<!-- ─────────── 5. BORINGOS ─────────── -->
+<h2 id="boringos">5. How BoringOS uses the SSE bus today</h2>
+
+<p>
+  The host already ships an SSE bus — it's listed in
+  <code>boringos/CLAUDE.md</code> as one of the standard features. Right
+  now the framework itself uses it for things like agent-run progress
+  ("started", "tool called", "finished"), workflow ticks, and
+  admin-page status. Open the admin run-detail page and watch a run
+  unfold in real time — that's SSE under the hood.
+</p>
+
+<p>
+  Anatomy of the bus, at a high level:
+</p>
+
+<div class="scene">
+  <header>
+    <span class="num">CONCEPT · 01</span>
+    <span class="title">The SSE bus inside BoringOS</span>
+  </header>
+  <div class="body">
+    <ol>
+      <li>The host exposes <code>GET /api/events</code> (or similar) — that's the SSE endpoint a browser subscribes to.</li>
+      <li>The browser's <code>EventSource</code> API connects. The host's auth middleware checks identity. The connection stays open.</li>
+      <li>Server-side, any module can publish through a typed helper — usually <code>eventBus.publish({ kind, tenantId, payload })</code>.</li>
+      <li>The host broadcasts each event to every connected subscriber on the same tenant. Other tenants don't see it.</li>
+      <li>If the connection drops (network blip, sleep), the browser's <code>EventSource</code> auto-reconnects. The server emits a <code>Last-Event-ID</code> hint so the browser can pick up from where it left off.</li>
+    </ol>
+  </div>
+</div>
+
+<p>
+  The EA module gets the event bus injected the same way it gets the
+  database and tool registry — via <code>deps.getEventBus()</code> in
+  the module factory. We just haven't called <code>publish</code> from
+  anywhere yet.
+</p>
+
+<!-- ─────────── 6. EA ─────────── -->
+<h2 id="ea">6. What changes if the EA publishes on it</h2>
+
+<p>
+  Right now the dossier page polls every 60 seconds for snapshots,
+  meetings, conflicts, deltas, weather, week-data. Eight queries, each
+  on its own timer. If a sync detects a conflict, the user sees it on
+  the next 60-second tick.
+</p>
+
+<p>
+  With the bus wired, the EA publishes events on each meaningful change:
+</p>
+
+<div class="diagram">  meetings.upsert_from_calendar finishes
+       └─► eventBus.publish({ kind: 'meeting.updated', tenantId, meetingId })
+
+  recomputeConflictsForDate writes a new conflict
+       └─► eventBus.publish({ kind: 'conflict.detected', tenantId, conflictId })
+
+  meetings.set_brief writes a brief
+       └─► eventBus.publish({ kind: 'brief.changed', tenantId, meetingId })
+
+  preferences.set('current_location', ...)
+       └─► eventBus.publish({ kind: 'location.changed', tenantId })</div>
+
+<p>
+  The browser side stops timer-polling and starts listening:
+</p>
+
+<pre>// hooks/useEaBus.ts (sketch)
+useEffect(() => {
+  const es = new EventSource("/api/events?topics=ea.*");
+  es.addEventListener("conflict.detected", () =&gt; {
+    queryClient.invalidateQueries({ queryKey: ["ea", "conflicts"] });
+  });
+  es.addEventListener("meeting.updated", () =&gt; {
+    queryClient.invalidateQueries({ queryKey: ["ea", "meetings"] });
+  });
+  return () =&gt; es.close();
+}, []);</pre>
+
+<p>
+  Each event arriving tells the React Query cache to invalidate the
+  matching key. The hook re-fetches once, the UI re-renders. No more
+  60-second timers; updates show up the moment the server has new data.
+</p>
+
+<div class="twocol">
+  <div class="panel">
+    <h5>Before — polling</h5>
+    <p style="font-size: 14.5px; margin: 0;">
+      8 queries × 60s = 8 round-trips per minute, every minute. Worst-case
+      latency 60 s. Updates feel laggy. Battery drain on the user's
+      device. Server handles a lot of "nothing changed" requests.
+    </p>
+  </div>
+  <div class="panel">
+    <h5>After — SSE bus</h5>
+    <p style="font-size: 14.5px; margin: 0;">
+      1 connection open per tab. Server pushes only when something
+      actually changes. Worst-case latency milliseconds. The dossier
+      feels alive — a meeting you just rescheduled in Google appears on
+      the dossier almost as fast as in Google's own UI.
+    </p>
+  </div>
+</div>
+
+<p>
+  Importantly, this is <em>Leg 2</em> of the architecture (server → UI).
+  It doesn't solve the Google-Calendar → server problem (that one needs
+  webhooks or fast polling). But it unlocks "instant" everywhere from
+  the server inward. Combined with the sync-token incremental polling
+  we just shipped, end-to-end latency for a calendar edit becomes:
+</p>
+
+<div class="diagram"> Google Calendar edit
+       │  (up to ~60 s — bounded by 1-min cron)
+       ▼
+ Server upserts row, fires conflict scan
+       │  (milliseconds — publishes to SSE bus)
+       ▼
+ Browser receives event, invalidates query
+       │  (milliseconds — refetch is fast)
+       ▼
+ UI re-renders with the change</div>
+
+<!-- ─────────── 7. TRY ─────────── -->
+<h2 id="try">7. Try it yourself — a 20-line example</h2>
+
+<p>
+  You can taste SSE without any framework. Here's a tiny Node server
+  that streams the current time to anyone who connects, and a one-line
+  HTML page that listens.
+</p>
+
+<h4>Server</h4>
+<pre>import http from "node:http";
+
+http.createServer((req, res) =&gt; {
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    "Connection": "keep-alive",
+  });
+
+  const tick = () =&gt; {
+    res.write(`data: ${new Date().toISOString()}\n\n`);
+  };
+  const id = setInterval(tick, 1000);
+  req.on("close", () =&gt; clearInterval(id));
+}).listen(3001);</pre>
+
+<h4>Browser</h4>
+<pre>&lt;script&gt;
+  const es = new EventSource("http://localhost:3001");
+  es.onmessage = (e) =&gt; console.log("got:", e.data);
+&lt;/script&gt;</pre>
+
+<p>
+  Open the page, look at the console. You'll see one line per second,
+  pushed by the server, with no polling. Close the tab and the server's
+  <code>req.on("close")</code> fires — that's the auto-cleanup. Refresh
+  and the browser reconnects automatically. That's SSE in its entirety.
+</p>
+
+<p>
+  The BoringOS bus is the same idea, just typed and routed: every
+  event has a <code>kind</code> and a <code>tenantId</code>, the host
+  filters per-subscriber, and subscribers can listen for specific kinds
+  rather than everything.
+</p>
+
+<div class="callout" style="margin-top: 32px;">
+  <strong>Where this lives in the EA roadmap.</strong> The sync-token
+  polling work we just shipped (v0.4.19) handles Leg 1 — calendar to
+  server. The SSE bus work would handle Leg 2 — server to UI. They're
+  independent; either one shipped on its own is a real improvement. The
+  current cost of NOT having SSE is the 60-second polling lag the
+  dossier still has even though the server has the data already.
+</div>
+
+</div>
+</body>
+</html>

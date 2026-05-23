@@ -1,0 +1,86 @@
+/* Inter + JetBrains Mono via Google Fonts (matches shell loading
+   pattern; cached browser-side, served once). MUST be the first
+   @import — CSS spec requires @import rules precede all others. */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
+@import "tailwindcss";
+
+/* Shell-native design tokens. Verbatim from BoringOS shell's UI
+   audit — see docs/ui_refactor_design.md §4.1. The intent: a user
+   moving across shell, CRM, and EA experiences one product, not
+   three. Inter is the only typeface; JetBrains Mono is for
+   identifiers and time tokens. No serifs anywhere. */
+
+@theme {
+  /* Paper canvas (warm off-white) */
+  --color-paper: #F8F6F1;
+  --color-paper-warm: #F1ECE3;
+  --color-surface: #FFFFFF;
+  --color-surface-raised: #FFFFFF;
+
+  /* Borders */
+  --color-rule: #E6E1D6;
+  --color-rule-soft: #EFEAE0;
+
+  /* Ink */
+  --color-ink: #0B1220;
+  --color-ink-2: #2A3447;
+  --color-ink-soft: #2A3447;     /* alias: existing component code expects this */
+  --color-ink-faint: #5C6478;    /* alias: was muted-strong, but EA components use ink-faint */
+  --color-muted: #5C6478;
+  --color-muted-strong: #3D4456;
+
+  /* Accent (amber — shell's primary signal colour) */
+  --color-accent: #B45309;
+  --color-accent-light: #D97706;
+  --color-accent-tint: rgba(180, 83, 9, 0.10);
+
+  /* Status colours (shell palette) */
+  --color-green: #4F6B57;
+  --color-green-soft: #E3EEDF;
+  --color-red: #F43F5E;
+  --color-red-soft: #F3DCD7;
+  --color-amber-soft: #FBEEE2;
+
+  /* Existing component aliases — keep so legacy refs compile.
+     These map old semantic names onto shell-native equivalents. */
+  --color-delta: #B45309;        /* was a separate hue; now amber */
+  --color-conflict: #F43F5E;     /* was a separate hue; now shell red */
+  --color-signal: #B45309;       /* unify info channel onto amber */
+  --color-learned: #4F6B57;      /* unify on shell green */
+  --color-elevated: #B45309;     /* "elevated" callouts use accent */
+  --color-paper-card: #FFFFFF;   /* card surface == shell surface */
+  --color-ink-very-faint: #7A7468;
+
+  /* Typography */
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  /* Legacy alias — old components reference --font-serif. Map it to
+     Inter so any leftover usage still gets the new family while we
+     restyle each component in Phase A2. */
+  --font-serif: "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Shell's dot-grid canvas — ink-toned dots at 24×24 px. The visual
+   anchor that distinguishes "we're inside a BoringOS surface" from
+   "we're on a generic web page". */
+body {
+  background-image: radial-gradient(rgba(11, 18, 32, 0.045) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+#root {
+  min-height: 100vh;
+}

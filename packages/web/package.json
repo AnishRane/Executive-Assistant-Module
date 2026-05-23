@@ -1,0 +1,37 @@
+{
+  "name": "@executive-assistant/web",
+  "version": "0.4.3",
+  "private": true,
+  "type": "module",
+  "main": "./src/ui.ts",
+  "types": "./src/ui.ts",
+  "exports": {
+    ".": {
+      "types": "./src/ui.ts",
+      "import": "./src/ui.ts"
+    }
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@boringos/ui": "link:../../../boringos/packages/@boringos/ui",
+    "@executive-assistant/shared": "workspace:*",
+    "@tanstack/react-query": "^5.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-markdown": "^10.1.0",
+    "react-router-dom": "^7.0.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.0.0",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.7.3",
+    "vite": "^6.0.0"
+  }
+}

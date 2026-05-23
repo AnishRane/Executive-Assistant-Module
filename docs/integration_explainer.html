@@ -1,0 +1,637 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Why your dossier isn't getting fresh data — a kitchen story</title>
+<style>
+  :root {
+    --paper: #faf7f1;
+    --ink: #1a1814;
+    --ink-soft: #4a4640;
+    --ink-faint: #7a7468;
+    --rule: #d8cfbe;
+    --rule-soft: #e8e0cf;
+    --accent: #8a3a1f;
+    --green: #2f6b3a;
+    --green-soft: #e3eedf;
+    --red: #9b2c1f;
+    --red-soft: #f3dcd7;
+    --amber: #a86417;
+    --amber-soft: #f3e6c8;
+    --chip-bg-soft: #f5efe1;
+  }
+  html { background: var(--paper); }
+  body {
+    margin: 0;
+    font-family: "Georgia", "Iowan Old Style", "Charter", "Times New Roman", serif;
+    color: var(--ink);
+    line-height: 1.6;
+    font-size: 17px;
+  }
+  .mono { font-family: "JetBrains Mono", "SF Mono", Menlo, monospace; }
+  .page { max-width: 880px; margin: 0 auto; padding: 56px 28px 96px; }
+
+  header.cover {
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 24px;
+    margin-bottom: 36px;
+  }
+  .eyebrow {
+    font-family: "JetBrains Mono", "SF Mono", Menlo, monospace;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 12px;
+  }
+  h1 {
+    font-size: 36px;
+    font-weight: 500;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    margin: 0 0 12px;
+  }
+  .deck { color: var(--ink-soft); font-size: 18px; max-width: 660px; }
+
+  h2 {
+    font-size: 24px;
+    font-weight: 500;
+    margin: 56px 0 14px;
+    letter-spacing: -0.005em;
+  }
+  h3 {
+    font-size: 19px;
+    font-weight: 500;
+    margin: 28px 0 8px;
+  }
+
+  p { margin: 0 0 14px; }
+  em.who {
+    font-style: italic;
+    color: var(--ink-soft);
+  }
+
+  /* Cast of characters */
+  .cast {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px 24px;
+    margin: 18px 0 32px;
+    background: var(--chip-bg-soft);
+    border: 1px solid var(--rule);
+    padding: 22px 26px;
+  }
+  .cast .row {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    font-size: 15px;
+  }
+  .cast .emoji { font-size: 22px; line-height: 1; }
+  .cast b { color: var(--ink); display: block; }
+  .cast span.def { color: var(--ink-soft); }
+
+  /* Story scene */
+  .scene {
+    border: 1px solid var(--rule);
+    margin: 0 0 24px;
+    background: white;
+  }
+  .scene > header {
+    background: var(--chip-bg-soft);
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--rule);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .scene > header .num {
+    font-family: "JetBrains Mono", "SF Mono", Menlo, monospace;
+    font-size: 12px;
+    color: var(--ink-faint);
+    letter-spacing: 0.1em;
+  }
+  .scene > header .title {
+    font-size: 19px;
+    font-weight: 500;
+    flex: 1;
+  }
+  .scene > header .pill {
+    font-family: "JetBrains Mono", "SF Mono", Menlo, monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 3px 9px;
+    border-radius: 2px;
+    font-weight: 500;
+  }
+  .scene > header .pill.red { background: var(--red-soft); color: var(--red); }
+  .scene > header .pill.green { background: var(--green-soft); color: var(--green); }
+  .scene > header .pill.amber { background: var(--amber-soft); color: var(--amber); }
+  .scene > .body { padding: 18px 22px 6px; }
+
+  .twocol {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin-top: 12px;
+  }
+  .twocol .panel {
+    border: 1px solid var(--rule-soft);
+    padding: 12px 16px;
+    background: var(--paper);
+  }
+  .twocol .panel.bad { background: var(--red-soft); border-color: var(--red); }
+  .twocol .panel.good { background: var(--green-soft); border-color: var(--green); }
+  .twocol h4 {
+    margin: 0 0 6px;
+    font-family: "JetBrains Mono", "SF Mono", Menlo, monospace;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    font-weight: 500;
+  }
+
+  .result {
+    margin-top: 10px;
+    padding: 10px 14px 10px 16px;
+    border-left: 3px solid var(--red);
+    background: #fbeee2;
+    font-size: 15px;
+    color: var(--ink);
+  }
+  .result.good {
+    border-left-color: var(--green);
+    background: var(--green-soft);
+  }
+  .result b {
+    font-family: "JetBrains Mono", "SF Mono", Menlo, monospace;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    font-weight: 500;
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  /* Fix-option cards */
+  .options {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+    margin-top: 14px;
+  }
+  .opt {
+    border: 1px solid var(--rule);
+    padding: 18px 22px;
+    background: white;
+  }
+  .opt.recommend {
+    border-color: var(--green);
+    background: #f3f8f0;
+  }
+  .opt header {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 6px;
+  }
+  .opt header .emoji { font-size: 22px; }
+  .opt header .name { font-size: 17px; font-weight: 600; }
+  .opt header .tag {
+    margin-left: auto;
+    font-family: "JetBrains Mono", "SF Mono", Menlo, monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--green);
+    font-weight: 600;
+  }
+  .opt .pro,
+  .opt .con {
+    font-size: 14.5px;
+    margin: 3px 0;
+  }
+  .opt .pro::before { content: "✓ "; color: var(--green); font-weight: 700; }
+  .opt .con::before { content: "× "; color: var(--red); font-weight: 700; }
+
+  /* Recipe code styling */
+  code.recipe {
+    font-family: "JetBrains Mono", "SF Mono", Menlo, monospace;
+    font-size: 12.5px;
+    background: var(--chip-bg-soft);
+    padding: 1px 6px;
+    border-radius: 2px;
+  }
+
+  footer.foot {
+    margin-top: 60px;
+    padding-top: 18px;
+    border-top: 1px solid var(--rule);
+    font-family: "JetBrains Mono", "SF Mono", Menlo, monospace;
+    font-size: 11px;
+    color: var(--ink-faint);
+  }
+
+  @media (max-width: 700px) {
+    .cast { grid-template-columns: 1fr; }
+    .twocol { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="cover">
+    <div class="eyebrow">A kitchen story</div>
+    <h1>Why your daily dossier isn't getting fresh data</h1>
+    <p class="deck">
+      Imagine BoringOS is a big shared kitchen, and Executive Assistant
+      is a new chef who joined to make one specific dish every morning:
+      your daily dossier. The dish needs fresh ingredients — your
+      calendar and your email. Right now those ingredients aren't
+      arriving, and six different things are quietly broken. Here's
+      the story.
+    </p>
+  </header>
+
+  <!-- =================================================== -->
+  <h2>The cast</h2>
+  <p>
+    Before the story, meet everyone in the kitchen:
+  </p>
+  <div class="cast">
+    <div class="row">
+      <span class="emoji">🏢</span>
+      <span><b>BoringOS</b><span class="def">The kitchen itself. Has equipment, staff, and a bell system everyone shares.</span></span>
+    </div>
+    <div class="row">
+      <span class="emoji">👨‍🍳</span>
+      <span><b>Executive Assistant (Chef EA)</b><span class="def">The new chef who just joined. Wants to make the “daily dossier” dish every morning.</span></span>
+    </div>
+    <div class="row">
+      <span class="emoji">📅</span>
+      <span><b>Google Calendar</b><span class="def">The appointment-book supplier. Drops off what's on your schedule.</span></span>
+    </div>
+    <div class="row">
+      <span class="emoji">📧</span>
+      <span><b>Gmail</b><span class="def">The mail courier. Brings letters all day long.</span></span>
+    </div>
+    <div class="row">
+      <span class="emoji">🗂️</span>
+      <span><b>Triage Helper</b><span class="def">The kitchen helper who sorts mail into piles: urgent / important / FYI / junk.</span></span>
+    </div>
+    <div class="row">
+      <span class="emoji">📜</span>
+      <span><b>Workflow</b><span class="def">A recipe card on the wall: “step 1, step 2, step 3.”</span></span>
+    </div>
+    <div class="row">
+      <span class="emoji">⏰</span>
+      <span><b>Routine</b><span class="def">The kitchen timer. “Every 15 minutes, do this.”</span></span>
+    </div>
+    <div class="row">
+      <span class="emoji">🔔</span>
+      <span><b>Event</b><span class="def">An announcement over the kitchen intercom. “New mail just arrived!”</span></span>
+    </div>
+  </div>
+
+  <!-- =================================================== -->
+  <h2>What's supposed to happen</h2>
+  <p>
+    In a working kitchen, the morning goes like this:
+  </p>
+  <ol style="font-size:16px; color:var(--ink-soft); line-height:1.7;">
+    <li>⏰ The kitchen timer dings every 15 minutes. Chef EA's prep station fetches the latest appointments from the calendar supplier and writes them in the appointment book.</li>
+    <li>📧 Gmail keeps dropping off mail. Triage Helper sorts each letter and shouts the category over the intercom: <em>“Letter 47 is urgent!”</em></li>
+    <li>✈️ Whenever Triage shouts about something travel-related, Chef EA's assistant (the travel-lens) runs over, reads it, and writes the trip details in a travel log.</li>
+    <li>☕ At 6:00 AM the next morning, Chef EA sits down with a fresh appointment book and travel log, and writes the dossier.</li>
+  </ol>
+
+  <!-- =================================================== -->
+  <h2>What's actually happening</h2>
+  <p>
+    Six things are broken. Let's walk through them.
+  </p>
+
+  <!-- GAP 1 -->
+  <article class="scene">
+    <header>
+      <span class="num">GAP 1</span>
+      <span class="title">🔕 The doorbell that never rings</span>
+      <span class="pill red">Broken in the kitchen</span>
+    </header>
+    <div class="body">
+      <p>
+        The kitchen <em>has</em> a doorbell labeled <strong>“supplier connected!”</strong> — it's supposed to ring the moment you sign up with Google. Chef EA wired his timer to start ringing only after that doorbell rings, because there's no point fetching appointments before the supplier is set up.
+      </p>
+      <p>
+        Problem: <strong>nobody ever wired the doorbell.</strong> The button is on the wall, but it's not connected to anything. You can sign up with Google a hundred times — no ding, no announcement, nothing.
+      </p>
+      <div class="result"><b>Result</b>Chef EA's “fetch appointments every 15 minutes” timer is waiting for a doorbell that will never ring. It stays asleep forever.</div>
+    </div>
+  </article>
+
+  <!-- GAP 2 -->
+  <article class="scene">
+    <header>
+      <span class="num">GAP 2</span>
+      <span class="title">🤖 The made-up machine</span>
+      <span class="pill red">Recipe-card typo</span>
+    </header>
+    <div class="body">
+      <p>
+        Chef EA's recipe card has a step that says <em>“use the Fancy Connector-Fetcher 3000 to grab the appointments.”</em>
+      </p>
+      <p>
+        Problem: <strong>there is no such machine in this kitchen.</strong> The kitchen has a regular Fetcher, but not a “Connector-Fetcher 3000”. When the kitchen reads a step that calls for equipment it doesn't have, it just <em>silently skips the step</em> — no error, no warning, the recipe pretends the step happened.
+      </p>
+      <div class="twocol">
+        <div class="panel bad">
+          <h4>What the recipe says</h4>
+          <code class="recipe">step: use Connector-Fetcher 3000</code>
+        </div>
+        <div class="panel good">
+          <h4>What the kitchen has</h4>
+          <code class="recipe">step: use google.calendar.list_events</code>
+        </div>
+      </div>
+      <div class="result"><b>Result</b>Even if the timer rang (it doesn't), the “fetch appointments” step would just be empty.</div>
+    </div>
+  </article>
+
+  <!-- GAP 3 -->
+  <article class="scene">
+    <header>
+      <span class="num">GAP 3</span>
+      <span class="title">✏️ The typo in the recipe</span>
+      <span class="pill red">Recipe-card typo</span>
+    </header>
+    <div class="body">
+      <p>
+        The next step on the recipe says <em>“for-each appointment, write it in the book.”</em> But the kitchen only understands <em>“for_each”</em> — underscore, not hyphen. It's like asking for <em>“tom-ato”</em> when the kitchen only knows <em>“tom_ato”</em>.
+      </p>
+      <div class="twocol">
+        <div class="panel bad">
+          <h4>What the recipe says</h4>
+          <code class="recipe">for-each</code>
+        </div>
+        <div class="panel good">
+          <h4>What the kitchen understands</h4>
+          <code class="recipe">for_each</code>
+        </div>
+      </div>
+      <p>
+        And there's a second problem here. Chef EA's recipe wrote the loop in two pieces — <em>“first start the loop, then over here is the chopping bit.”</em> But the kitchen's <code class="recipe">for_each</code> is a one-shot: it does the loop <em>and</em> the per-item work in a single block. Even fixing the typo wouldn't make this work.
+      </p>
+      <div class="result"><b>Result</b>Even if everything else worked, the loop would never iterate.</div>
+    </div>
+  </article>
+
+  <!-- GAP 4 -->
+  <article class="scene">
+    <header>
+      <span class="num">GAP 4</span>
+      <span class="title">⏰ The time machine that doesn't exist</span>
+      <span class="pill red">Recipe-card typo</span>
+    </header>
+    <div class="body">
+      <p>
+        The recipe says <em>“get appointments from NOW to NOW+30 days.”</em>
+      </p>
+      <p>
+        But the kitchen has no clock that understands the word <em>“NOW”</em>. The supplier only accepts actual dates and times, like <em>“May 14, 2026 at 8:00 AM.”</em>
+      </p>
+      <div class="twocol">
+        <div class="panel bad">
+          <h4>What the recipe asks for</h4>
+          <code class="recipe">timeMin: "NOW"<br/>timeMax: "NOW+30d"</code>
+        </div>
+        <div class="panel good">
+          <h4>What the supplier needs</h4>
+          <code class="recipe">timeMin: "2026-05-14T00:00:00Z"<br/>timeMax: "2026-06-13T23:59:59Z"</code>
+        </div>
+      </div>
+      <div class="result"><b>Result</b>If the order ever got placed, the supplier would say <em>“I don't understand 'NOW'”</em> and send back nothing.</div>
+    </div>
+  </article>
+
+  <!-- GAP 5 -->
+  <article class="scene">
+    <header>
+      <span class="num">GAP 5</span>
+      <span class="title">🚪 The phantom button</span>
+      <span class="pill red">Recipe-card typo</span>
+    </header>
+    <div class="body">
+      <p>
+        The recipe for waking up the timers says <em>“press the un-pause button on the timer.”</em> But there is no “un-pause button” in this kitchen. There's a regular set of timer controls, but not that one specific button Chef EA wrote down.
+      </p>
+      <div class="result"><b>Result</b>Even if the doorbell rang (Gap 1), the recipe couldn't actually flip the timer on. It would just stand there pressing a button that doesn't exist.</div>
+    </div>
+  </article>
+
+  <!-- GAP 6 -->
+  <article class="scene">
+    <header>
+      <span class="num">GAP 6</span>
+      <span class="title">📦 The wrong shelf</span>
+      <span class="pill red">Recipe-card typo</span>
+    </header>
+    <div class="body">
+      <p>
+        The supplier delivers a box. The recipe says <em>“take the cookies from the box.”</em> But the supplier doesn't put cookies directly in the box — they put them in a <strong>tin inside the box</strong>. The recipe reaches in, doesn't find cookies, and grabs nothing.
+      </p>
+      <div class="twocol">
+        <div class="panel bad">
+          <h4>What the recipe grabs</h4>
+          <code class="recipe">box.cookies → nothing</code>
+        </div>
+        <div class="panel good">
+          <h4>Where the cookies are</h4>
+          <code class="recipe">box.data.cookies → the cookies!</code>
+        </div>
+      </div>
+      <div class="result"><b>Result</b>The loop runs over an empty list.</div>
+    </div>
+  </article>
+
+  <!-- =================================================== -->
+  <h2>What's surprisingly still working</h2>
+  <p>
+    Not everything is broken. Two parts work fine today:
+  </p>
+
+  <article class="scene">
+    <header>
+      <span class="num">OK</span>
+      <span class="title">☕ The 6 AM dossier writing</span>
+      <span class="pill green">Working</span>
+    </header>
+    <div class="body">
+      <p>
+        Chef EA's morning routine — sitting down at 6 AM, reading the appointment book, writing the dossier — doesn't go through any of the broken recipe cards. It just reads whatever's in the book and writes from that.
+      </p>
+      <p>
+        So technically Chef EA is composing every morning… <em>from an empty appointment book.</em> Like a writer with a blank page.
+      </p>
+    </div>
+  </article>
+
+  <article class="scene">
+    <header>
+      <span class="num">OK</span>
+      <span class="title">✈️ Travel-lens on the intercom</span>
+      <span class="pill green">Working</span>
+    </header>
+    <div class="body">
+      <p>
+        When Triage Helper sorts a piece of mail and shouts the category over the intercom, Chef EA's travel-lens assistant correctly hears it. If the category sounds travel-related, the assistant runs over and reads the letter. <strong>This path works end to end.</strong>
+      </p>
+    </div>
+  </article>
+
+  <!-- =================================================== -->
+  <h2>Three ways to fix it</h2>
+  <p>
+    Now that we know what's broken, here are the options. You pick.
+  </p>
+
+  <div class="options">
+    <article class="opt recommend">
+      <header>
+        <span class="emoji">🍳</span>
+        <span class="name">Option A — Build a simple prep station</span>
+        <span class="tag">Recommended</span>
+      </header>
+      <p>
+        Forget the complicated recipe cards. Give Chef EA his own small prep station that knows two things:
+      </p>
+      <ol style="margin:6px 0 10px 22px;font-size:15px;color:var(--ink-soft);">
+        <li>Ask the supplier for today's appointments (using <em>real</em> dates, not the word “NOW”).</li>
+        <li>Put each appointment in the appointment book.</li>
+      </ol>
+      <p>
+        The timer just says <em>“every 15 min, run the prep station.”</em> No recipe cards, no doorbell, no phantom buttons. We throw out the three broken recipes entirely.
+      </p>
+      <p class="pro">Sidesteps all six gaps — no doorbell, no typos, no shelves, no NOW.</p>
+      <p class="pro">Easy to test on a laptop without a real kitchen connection.</p>
+      <p class="pro">Doesn't need anything fixed inside BoringOS.</p>
+      <p class="con">A bit more EA-side code to write upfront (~150 lines + tests).</p>
+    </article>
+
+    <article class="opt">
+      <header>
+        <span class="emoji">📝</span>
+        <span class="name">Option B — Fix every typo on the recipe cards</span>
+      </header>
+      <p>
+        Keep the recipe-card system. Fix all six problems individually: rename the machine, fix the hyphen, compute real dates somehow, find or invent the un-pause button, fix the wrong shelf — <em>and</em> ask the kitchen owner to wire up the doorbell.
+      </p>
+      <p class="pro">Keeps the current architecture untouched.</p>
+      <p class="con">Six separate fixes, all fragile.</p>
+      <p class="con">Depends on fixing something inside BoringOS (Gap 1).</p>
+      <p class="con">Hard to test — recipe cards aren't easy to run on a laptop.</p>
+    </article>
+
+    <article class="opt">
+      <header>
+        <span class="emoji">⚙️</span>
+        <span class="name">Option C — Option A + fix the kitchen's doorbell</span>
+      </header>
+      <p>
+        Do option A (the prep station), <em>and</em> patch the kitchen so the doorbell actually rings when a supplier connects. The doorbell fix is one line of code in BoringOS but it's in a different repo, so we'd cross a boundary.
+      </p>
+      <p class="pro">Future chefs in this kitchen will get a working doorbell.</p>
+      <p class="con">Touches two repos. The workspace rules say do the framework first, then the consumer — so a bit more careful work.</p>
+    </article>
+  </div>
+
+  <!-- =================================================== -->
+  <h2>Bonus question: when should the timer start?</h2>
+
+  <div class="options">
+    <article class="opt recommend">
+      <header>
+        <span class="emoji">▶️</span>
+        <span class="name">Start the timer immediately</span>
+        <span class="tag">Recommended</span>
+      </header>
+      <p>
+        The timer starts the moment Chef EA is hired. If you haven't connected Google yet, the prep station just shrugs and tries again in 15 minutes — like a coffee maker that politely says <em>“no water yet, I'll check again soon.”</em>
+      </p>
+      <p class="pro">Zero manual setup. The moment you OAuth Google, the next 15-min tick picks it up.</p>
+      <p class="con">A little harmless logging while it waits.</p>
+    </article>
+    <article class="opt">
+      <header>
+        <span class="emoji">🛑</span>
+        <span class="name">Manually flip the timer on</span>
+      </header>
+      <p>
+        Timer stays off until you go into the admin UI and switch it on yourself, after you've connected Google.
+      </p>
+      <p class="pro">No noise in logs.</p>
+      <p class="con">One more thing for you to remember.</p>
+    </article>
+  </div>
+
+  <!-- =================================================== -->
+  <h2>Bonus question: how far ahead should we look?</h2>
+
+  <div class="options">
+    <article class="opt recommend">
+      <header>
+        <span class="emoji">📅</span>
+        <span class="name">Today + 7 days</span>
+        <span class="tag">Recommended</span>
+      </header>
+      <p>
+        A week's worth of appointments. Enough to notice <em>“the Wednesday meeting got moved to Thursday”</em> but not so much you're fetching things you don't need.
+      </p>
+    </article>
+    <article class="opt">
+      <header>
+        <span class="emoji">📆</span>
+        <span class="name">Today + 30 days</span>
+      </header>
+      <p>
+        A whole month. Helpful if you're planning trips far in advance. More work each tick; lots of repeat data.
+      </p>
+    </article>
+    <article class="opt">
+      <header>
+        <span class="emoji">🌅</span>
+        <span class="name">Today only</span>
+      </header>
+      <p>
+        Minimal. Just today's appointments. Misses anything that shifts tomorrow before tomorrow morning.
+      </p>
+    </article>
+  </div>
+
+  <!-- =================================================== -->
+  <h2>Once you decide</h2>
+  <p>
+    Pick one from each group and I'll wire it up. The total work is roughly:
+  </p>
+  <ul style="font-size:15.5px;color:var(--ink-soft);">
+    <li>Two new EA tools (the prep stations for calendar + email), with tests.</li>
+    <li>A simpler <code class="recipe">lifecycle.ts</code> — three broken workflows deleted; routines pointed at the new tools.</li>
+    <li>If you pick option C, a one-line patch on the BoringOS side to wire up the doorbell.</li>
+    <li>Version bump to 0.3.0, repack, upload. Same recipe as last time.</li>
+  </ul>
+
+  <footer class="foot">
+    <div>executive-assistant · integration explainer · written for the kitchen analogy</div>
+    <div style="margin-top:4px;">
+      The technical version of this document is the audit in the conversation history;
+      this file is the readable-by-anyone version.
+    </div>
+  </footer>
+
+</div>
+</body>
+</html>

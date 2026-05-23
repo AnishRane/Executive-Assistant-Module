@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>BoringOS — Modules, Plugins, Connectors explained</title>
+<style>
+  :root {
+    --paper: #fbf8f3;
+    --paper-soft: #f5efe6;
+    --paper-warm: #f0e8d8;
+    --surface: #ffffff;
+    --ink: #1c1c1e;
+    --ink-soft: #3a3a3c;
+    --muted: #7a7470;
+    --rule: #d8d2c7;
+    --rule-soft: #ece6da;
+    --accent: #8a6a3f;
+    --accent-soft: #b89a6a;
+    --accent-tint: #f0e6d0;
+    --accent-bg: #fbf3e0;
+    --code-bg: #0f0f10;
+    --code-ink: #d4d2cc;
+    --mod-ink: #4d3f6a;
+    --mod-bg: #ebe6f5;
+    --plg-ink: #6b4f25;
+    --plg-bg: #f3e9d4;
+    --con-ink: #2f4f3f;
+    --con-bg: #dde9e1;
+    --gap-ink: #6b3030;
+    --gap-bg: #ecdada;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Inter", "Helvetica Neue", sans-serif;
+    font-size: 14.5px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .serif { font-family: "Source Serif Pro", "Iowan Old Style", Charter, Georgia, serif; }
+  .mono  { font-family: "JetBrains Mono", "SF Mono", ui-monospace, Menlo, monospace; }
+  header.page {
+    border-bottom: 1px solid var(--rule);
+    padding: 30px 40px 22px;
+    background: var(--paper);
+  }
+  .eyebrow {
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  h1.serif {
+    margin: 0 0 8px 0;
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .lede {
+    font-size: 14.5px;
+    color: var(--ink-soft);
+    max-width: 760px;
+    margin: 0;
+  }
+  main {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 32px 40px 80px;
+  }
+  section { margin-bottom: 56px; }
+  h2 {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin: 0 0 14px;
+  }
+  h2 .num {
+    display: inline-block;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: white;
+    text-align: center;
+    line-height: 22px;
+    font-family: "JetBrains Mono", monospace;
+    margin-right: 10px;
+    font-size: 11px;
+  }
+  h3.serif {
+    margin: 0 0 8px;
+    font-size: 19px;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    color: var(--ink);
+  }
+  p { margin: 0 0 12px; color: var(--ink-soft); }
+  .section-lede {
+    color: var(--ink-soft);
+    margin: 0 0 22px;
+    max-width: 780px;
+  }
+
+  /* Tag chips */
+  .tag {
+    display: inline-block;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 3px 8px 2px;
+    border-radius: 4px;
+    line-height: 1;
+  }
+  .tag.mod { background: var(--mod-bg); color: var(--mod-ink); }
+  .tag.plg { background: var(--plg-bg); color: var(--plg-ink); }
+  .tag.con { background: var(--con-bg); color: var(--con-ink); }
+  .tag.gap { background: var(--gap-bg); color: var(--gap-ink); }
+
+  /* Cards grid for top-of-page glance */
+  .glance-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+  .glance {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .glance .head {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--rule-soft);
+    background: var(--paper-soft);
+  }
+  .glance.mod .head { background: var(--mod-bg); }
+  .glance.plg .head { background: var(--plg-bg); }
+  .glance.con .head { background: var(--con-bg); }
+  .glance .title.serif {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+  }
+  .glance .body {
+    padding: 12px 16px;
+  }
+  .glance .body ul {
+    margin: 6px 0 0;
+    padding-left: 18px;
+    font-size: 13px;
+    color: var(--ink-soft);
+    line-height: 1.55;
+  }
+  .glance .body ul li { margin-bottom: 4px; }
+  .glance .one-liner {
+    font-size: 13.5px;
+    color: var(--ink);
+    margin: 0 0 4px;
+  }
+
+  /* Comparison table */
+  .compare {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    overflow: hidden;
+    font-size: 13.5px;
+  }
+  .compare th, .compare td {
+    text-align: left;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--rule-soft);
+    vertical-align: top;
+  }
+  .compare tr:last-child td { border-bottom: none; }
+  .compare th {
+    background: var(--paper-soft);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .compare th.mod { background: var(--mod-bg); color: var(--mod-ink); }
+  .compare th.plg { background: var(--plg-bg); color: var(--plg-ink); }
+  .compare td.dim { color: var(--muted); }
+  .compare td .mono {
+    background: var(--paper-soft);
+    color: var(--ink);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 12px;
+  }
+
+  /* Multi-meaning table */
+  .layers-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .layers-table th, .layers-table td {
+    text-align: left;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--rule-soft);
+    vertical-align: top;
+    font-size: 13.5px;
+  }
+  .layers-table tr:last-child td { border-bottom: none; }
+  .layers-table th {
+    background: var(--paper-soft);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .layers-table .layer-n {
+    display: inline-block;
+    width: 22px;
+    height: 22px;
+    line-height: 22px;
+    text-align: center;
+    border-radius: 50%;
+    background: var(--accent);
+    color: white;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    margin-right: 8px;
+  }
+  .layers-table .what.mono {
+    background: var(--paper-soft);
+    color: var(--ink);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 12px;
+  }
+
+  /* Flow lanes for end-to-end */
+  .lanes {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .lane {
+    display: grid;
+    grid-template-columns: 130px 1fr;
+    gap: 16px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--rule-soft);
+  }
+  .lane:last-child { border-bottom: none; }
+  .lane .who {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+    color: var(--muted);
+    padding-top: 2px;
+  }
+  .lane .what {
+    font-size: 13.5px;
+    color: var(--ink-soft);
+  }
+  .lane .what .mono {
+    background: var(--paper-soft);
+    color: var(--ink);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 12px;
+  }
+  .lane .what strong { color: var(--ink); font-weight: 600; }
+
+  /* Code blocks */
+  .code-block {
+    background: var(--code-bg);
+    color: var(--code-ink);
+    border-radius: 8px;
+    font-family: "JetBrains Mono", "SF Mono", monospace;
+    font-size: 12.5px;
+    line-height: 1.6;
+    overflow-x: auto;
+    margin: 12px 0;
+  }
+  .code-block .head {
+    padding: 8px 14px;
+    border-bottom: 1px solid #2a2a2c;
+    font-size: 11px;
+    color: #8a8a90;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .code-block pre {
+    margin: 0;
+    padding: 14px;
+    white-space: pre;
+    overflow-x: auto;
+  }
+  .code-block .kw  { color: #c4a36a; }
+  .code-block .str { color: #82c19e; }
+  .code-block .com { color: #5a5a5e; font-style: italic; }
+  .code-block .fn  { color: #8fb6e0; }
+  .code-block .num { color: #b89a6a; }
+
+  /* Pain point list */
+  .pain-list { display: flex; flex-direction: column; gap: 10px; }
+  .pain {
+    display: flex;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+  }
+  .pain .label {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--gap-bg);
+    color: var(--gap-ink);
+    font-size: 10px;
+    font-weight: 700;
+    text-align: center;
+    line-height: 16px;
+    margin-top: 3px;
+  }
+  .pain p { margin: 0; font-size: 13.5px; color: var(--ink-soft); }
+  .pain p strong { color: var(--ink); }
+
+  /* Callout */
+  .callout {
+    background: var(--accent-bg);
+    border-left: 3px solid var(--accent);
+    padding: 14px 18px;
+    border-radius: 0 8px 8px 0;
+    margin-top: 16px;
+    color: var(--ink-soft);
+    font-size: 13.5px;
+  }
+  .callout strong { color: var(--ink); }
+  .callout .mono {
+    background: var(--paper-warm);
+    color: var(--ink);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 12px;
+  }
+
+  footer {
+    border-top: 1px solid var(--rule);
+    padding: 18px 40px;
+    color: var(--muted);
+    font-size: 12px;
+    text-align: center;
+  }
+
+  @media (max-width: 880px) {
+    .glance-grid { grid-template-columns: 1fr; }
+    .lane { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page">
+  <div class="eyebrow">BoringOS · architecture explainer</div>
+  <h1 class="serif">Modules, Plugins, Connectors — what they are and how they fit</h1>
+  <p class="lede">
+    Three nouns the framework throws at you, plus one of them
+    (<em>connector</em>) means three different things depending on
+    context. This doc unpacks each, draws the boundaries, and walks an
+    end-to-end "I want to build a module that needs Slack" scenario so
+    the seams become obvious.
+  </p>
+</header>
+
+<main>
+
+  <!-- ─── 1 · 30-second glance ─── -->
+  <section>
+    <h2><span class="num">1</span>At a glance</h2>
+    <p class="section-lede">
+      Three primitives, three jobs. They're <em>not</em> alternatives — they
+      coexist in one host and lean on each other. Tap each card to learn
+      more in §2–§4.
+    </p>
+
+    <div class="glance-grid">
+      <div class="glance mod">
+        <div class="head">
+          <div class="title serif">Module</div>
+          <span class="tag mod">app.module()</span>
+        </div>
+        <div class="body">
+          <p class="one-liner"><strong>A bundle of skills + tools the agent can read and call.</strong></p>
+          <ul>
+            <li>Owns DB schema (prefix <span class="mono">&lt;id&gt;__</span>)</li>
+            <li>Ships agent tools, skills, UI screens</li>
+            <li>Optional OAuth, webhooks, default workflows / agents / routines</li>
+            <li>Per-tenant install/uninstall via <span class="mono">.hebbsmod</span> upload</li>
+            <li>Three roles: <em>connector</em>, <em>module</em>, <em>hybrid</em> (UI hint only)</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="glance plg">
+        <div class="head">
+          <div class="title serif">Plugin</div>
+          <span class="tag plg">app.plugin()</span>
+        </div>
+        <div class="body">
+          <p class="one-liner"><strong>Background jobs + inbound webhooks. No agent surface.</strong></p>
+          <ul>
+            <li>Cron jobs with persistent KV state</li>
+            <li>Webhooks mounted at <span class="mono">/webhooks/plugins/&lt;name&gt;/&lt;event&gt;</span></li>
+            <li>Per-tenant config stored in DB</li>
+            <li>No tools, no schema, no UI, no agent skills</li>
+            <li>Always-on (no install/uninstall lifecycle)</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="glance con">
+        <div class="head">
+          <div class="title serif">Connector</div>
+          <span class="tag con">three meanings</span>
+        </div>
+        <div class="body">
+          <p class="one-liner"><strong>An overloaded word — pin which layer you mean.</strong></p>
+          <ul>
+            <li><strong>(a)</strong> A row in the <span class="mono">connectors</span> table = OAuth grant for tenant X to provider Y</li>
+            <li><strong>(b)</strong> A npm package like <span class="mono">@boringos/connector-google</span> = the HTTP client to talk to Google</li>
+            <li><strong>(c)</strong> A Module with <span class="mono">kind: "connector"</span> = the agent-facing wrapper that exposes tools</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ─── 2 · the Module deep dive ─── -->
+  <section>
+    <h2><span class="num">2</span>Module — the universal component</h2>
+    <p class="section-lede">
+      Everything a tenant can install and uninstall as a unit is a Module.
+      It's the only primitive that touches the agent: tools, skills, and
+      UI all live here. Three "roles" play different mixes of the same
+      manifest.
+    </p>
+
+    <h3 class="serif">Same manifest, three roles</h3>
+    <table class="compare">
+      <thead>
+        <tr><th>Role</th><th>What it owns</th><th>Typical fields</th><th>Real examples</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Connector</strong> <span class="tag con">kind:"connector"</span></td>
+          <td>A 3rd-party integration (Gmail, Slack)</td>
+          <td><span class="mono">oauth</span>, <span class="mono">tools</span>, <span class="mono">webhooks</span>, <span class="mono">events</span></td>
+          <td class="dim">core <span class="mono">google</span>, <span class="mono">slack</span></td>
+        </tr>
+        <tr>
+          <td><strong>Module</strong> <span class="tag mod">kind:"module"</span></td>
+          <td>Business logic + data over other Modules</td>
+          <td><span class="mono">schema</span>, <span class="mono">dependsOn</span>, <span class="mono">tools</span>, <span class="mono">provides</span></td>
+          <td class="dim">EA, Hebbs CRM, triage</td>
+        </tr>
+        <tr>
+          <td><strong>Hybrid</strong> <span class="tag mod">kind:"hybrid"</span></td>
+          <td>Owns data <em>and</em> brokers a 3rd-party</td>
+          <td>both columns above combined</td>
+          <td class="dim">Stripe Billing (hypothetical)</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout">
+      <strong>"Same shape, different role"</strong> is the design philosophy.
+      A Module that owns no DB schema and only brokers OAuth is a connector;
+      one that owns schema is a "module" in the narrower sense; one that does
+      both is hybrid. The framework treats all three identically — install,
+      dispatch, lifecycle. The <span class="mono">kind</span> field is just a
+      UI hint (group under <em>Connectors</em> vs. <em>Apps</em> in the shell).
+    </div>
+
+    <h3 class="serif" style="margin-top:24px;">What a Module ships (fields the manifest accepts)</h3>
+    <ul style="font-size:13.5px; color: var(--ink-soft); margin: 0 0 12px; padding-left:20px;">
+      <li><span class="mono">tools</span> — Zod-typed callables dispatched at <span class="mono">/api/tools/&lt;id&gt;.&lt;name&gt;</span>. <strong>Agent calls these.</strong></li>
+      <li><span class="mono">skills</span> — markdown injected into the agent's prompt under <span class="mono">## Skills</span>.</li>
+      <li><span class="mono">schema</span> — Drizzle migrations. Tables MUST be prefixed <span class="mono">&lt;id&gt;__</span>.</li>
+      <li><span class="mono">workflows</span> / <span class="mono">agents</span> / <span class="mono">routines</span> — seeded on install; editable rows the tenant owns afterward.</li>
+      <li><span class="mono">webhooks</span> — inbound HTTP at <span class="mono">/api/webhooks/&lt;id&gt;/&lt;event&gt;</span>. The Module owns signature verification.</li>
+      <li><span class="mono">oauth</span> — declarative OAuth config. <em>Status: declared in SDK, built-ins still use the legacy <span class="mono">connectors</span> table.</em></li>
+      <li><span class="mono">ui</span> — React screens / panels the shell mounts.</li>
+      <li><span class="mono">lifecycle</span> — <span class="mono">onInstall</span>, <span class="mono">onUninstall</span>, <span class="mono">onTenantCreate</span> hooks.</li>
+      <li><span class="mono">dependsOn</span> / <span class="mono">provides</span> — capability resolution across modules.</li>
+    </ul>
+
+    <h3 class="serif" style="margin-top:20px;">How modules get registered</h3>
+    <p>
+      Two paths, both end at the same <span class="mono">app.module()</span> registration:
+    </p>
+    <ul style="font-size:13.5px; color: var(--ink-soft); margin: 0 0 12px; padding-left:20px;">
+      <li><strong>Static, at boot.</strong> Built-ins call <span class="mono">app.module(myModule)</span> before
+        <span class="mono">app.listen()</span>. The 11 built-ins (framework, memory, drive,
+        workflow, inbox, slack, google, copilot, triage, inbox-triage, inbox-replier)
+        live in <span class="mono">core/src/modules/</span>.</li>
+      <li><strong>Runtime upload.</strong> Third-party Modules ship as a
+        single <span class="mono">.hebbsmod</span> bundle. Admin drops it on the
+        <em>Apps</em> screen → host extracts, signature-checks, dynamic-imports the
+        bundle, calls the same registration path on a live process. No restart,
+        no <span class="mono">npm publish</span>, no source checkout.</li>
+    </ul>
+  </section>
+
+
+  <!-- ─── 3 · the Plugin deep dive ─── -->
+  <section>
+    <h2><span class="num">3</span>Plugin — the lightweight cousin</h2>
+    <p class="section-lede">
+      Plugins are a <strong>separate primitive</strong>, not a kind of Module.
+      They run cron jobs and receive webhooks, but they don't expose agent
+      tools, don't own schema, don't have a UI, and there's no per-tenant
+      install/uninstall ceremony.
+    </p>
+
+    <h3 class="serif">When you'd reach for a plugin instead of a module</h3>
+    <table class="compare">
+      <thead>
+        <tr><th>Need</th><th class="mod">Module</th><th class="plg">Plugin</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Expose tools the agent can call</td>
+          <td>✅ <span class="mono">tools[]</span></td>
+          <td>❌ Not supported</td>
+        </tr>
+        <tr>
+          <td>Own DB tables / schema</td>
+          <td>✅ <span class="mono">schema</span> with <span class="mono">&lt;id&gt;__</span> prefix</td>
+          <td>❌ Per-tenant KV state store only</td>
+        </tr>
+        <tr>
+          <td>Ship UI screens / panels</td>
+          <td>✅ <span class="mono">ui</span> field</td>
+          <td>❌</td>
+        </tr>
+        <tr>
+          <td>Run a cron job</td>
+          <td>✅ <span class="mono">routines[]</span></td>
+          <td>✅ <span class="mono">jobs[]</span> with cron schedule</td>
+        </tr>
+        <tr>
+          <td>Receive inbound webhooks</td>
+          <td>✅ <span class="mono">/api/webhooks/&lt;id&gt;/&lt;event&gt;</span></td>
+          <td>✅ <span class="mono">/webhooks/plugins/&lt;name&gt;/&lt;event&gt;</span></td>
+        </tr>
+        <tr>
+          <td>Tenant install lifecycle</td>
+          <td>✅ <span class="mono">module_installs</span> row + <span class="mono">onInstall</span> hook</td>
+          <td>❌ Always-on; just config + state per tenant</td>
+        </tr>
+        <tr>
+          <td>Distribution format</td>
+          <td><span class="mono">.hebbsmod</span> bundle uploaded via admin UI</td>
+          <td>Code-only; registered via <span class="mono">app.plugin()</span> at host boot</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout" style="margin-top:18px;">
+      <strong>Mental model:</strong> Plugin is "I want to run a CRON job and
+      receive webhooks, that's it." If you ever need an agent to call into
+      your code or you need your own tables, you're really writing a Module
+      and should drop the plugin form. The shipping GitHub plugin is the
+      reference example — it syncs GitHub issues into BoringOS tasks every
+      15 minutes and posts incoming webhook events.
+    </div>
+  </section>
+
+
+  <!-- ─── 4 · the "connector" overloaded word ─── -->
+  <section>
+    <h2><span class="num">4</span>"Connector" — the word that means three things</h2>
+    <p class="section-lede">
+      When somebody says "connector" in BoringOS, they could mean any of
+      three layers. The framework's docs use the word for all of them.
+      Pin which one you mean before designing.
+    </p>
+
+    <table class="layers-table">
+      <thead>
+        <tr><th>Layer</th><th>What it is</th><th>Where it lives</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="layer-n">a</span><strong>Connector grant</strong></td>
+          <td>A single row in the <span class="what mono">connectors</span> table = "tenant X has OAuth tokens for provider Y (google or slack)". Stores access + refresh token, expiry, scopes.</td>
+          <td><span class="what mono">@boringos/db</span> · table <span class="mono">connectors</span></td>
+        </tr>
+        <tr>
+          <td><span class="layer-n">b</span><strong>Connector package</strong></td>
+          <td>An npm package that wraps a 3rd-party provider's HTTP API. Pure transport — no Module manifest, no agent surface. Other code imports and uses the client.</td>
+          <td><span class="what mono">@boringos/connector-google</span> (GmailClient + CalendarClient)<br><span class="what mono">@boringos/connector-slack</span></td>
+        </tr>
+        <tr>
+          <td><span class="layer-n">c</span><strong>Connector Module</strong></td>
+          <td>A Module manifest with <span class="what mono">kind: "connector"</span>. Imports the connector package's clients, wraps them in Tool definitions, declares OAuth scopes, exposes them to agents.</td>
+          <td><span class="what mono">core/src/modules/google.ts</span><br><span class="what mono">core/src/modules/slack.ts</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3 class="serif" style="margin-top:24px;">Worked example — how the three layers compose</h3>
+    <div class="lanes">
+      <div class="lane">
+        <div class="who">Tenant connects</div>
+        <div class="what">User clicks "Connect Google" in BoringOS. OAuth dance lands an access token + refresh token. A row is inserted into <span class="mono">connectors</span> with <span class="mono">(tenant_id, kind:"google", credentials:{...})</span>.<br><span class="tag con" style="margin-top:6px; display:inline-block;">Layer (a) — connector grant</span></div>
+      </div>
+      <div class="lane">
+        <div class="who">Module wants data</div>
+        <div class="what">EA's <span class="mono">calendar.sync_window</span> tool runs. It needs to call Google. It loads the token from <span class="mono">connectors</span> (or via the new <span class="mono">getConnectorToken</span> helper).<br><span class="tag con" style="margin-top:6px; display:inline-block;">Layer (a) read</span></div>
+      </div>
+      <div class="lane">
+        <div class="who">HTTP call</div>
+        <div class="what">EA uses the token to call Google REST directly, or — in the older path — invokes <span class="mono">google.calendar.list_events</span> (a tool exposed by the <strong>Connector Module</strong>). That tool uses <span class="mono">CalendarClient</span> from the <strong>connector package</strong>.<br><span class="tag con" style="margin-top:6px; display:inline-block;">Layer (b) + (c)</span></div>
+      </div>
+      <div class="lane">
+        <div class="who">Result back</div>
+        <div class="what">Google returns events. EA writes them to its <span class="mono">executive_assistant__meetings</span> table (its own schema, layer-(c) doesn't see this). The agent later reads them via EA's tools.</div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ─── 5 · contributor walkthrough ─── -->
+  <section>
+    <h2><span class="num">5</span>Walkthrough · "I want to build a Module that needs Slack"</h2>
+    <p class="section-lede">
+      You're an open-source contributor. You want to write a Module —
+      let's call it <span class="mono">deal-tracker</span> — that watches a
+      Slack channel for keywords and creates tasks. Here's how the
+      pieces fit, today.
+    </p>
+
+    <div class="lanes">
+      <div class="lane">
+        <div class="who">1 · Scaffold</div>
+        <div class="what">Generate a Module skeleton with <span class="mono">npx create-boringos</span> (or copy <span class="mono">examples/quickstart</span>). You get <span class="mono">module.json</span>, <span class="mono">src/module.ts</span>, a <span class="mono">SKILL.md</span>, a <span class="mono">migrations.ts</span>, and a <span class="mono">package.json</span>. Declare your manifest in <span class="mono">src/module.ts</span>.</div>
+      </div>
+      <div class="lane">
+        <div class="who">2 · Declare deps</div>
+        <div class="what">In your Module manifest: <span class="mono">dependsOn: [{ moduleId: "slack" }]</span>. The framework guarantees the <span class="mono">slack</span> Module is loaded before yours. Your tools can now call <span class="mono">slack.send_message</span>, <span class="mono">slack.list_channels</span>, etc.</div>
+      </div>
+      <div class="lane">
+        <div class="who">3 · OAuth</div>
+        <div class="what">You <strong>don't</strong> implement OAuth. The Slack <em>Connector Module</em> already handles "tenant X is connected to Slack" — your Module just calls Slack tools and the connector resolves the token from the <span class="mono">connectors</span> row at call time. Your tenant has to click "Connect Slack" once in BoringOS's settings UI.</div>
+      </div>
+      <div class="lane">
+        <div class="who">4 · React to Slack events</div>
+        <div class="what">
+          <strong>Today, the path is rough.</strong> Slack pushes events to a URL <em>you</em> must register in Slack's app settings. If your Module declares
+          <span class="mono">webhooks: [{ event: "messages", verify, handler }]</span>, the framework mounts a route at
+          <span class="mono">/api/webhooks/deal-tracker/messages</span>. You still have to:
+          <span class="tag gap" style="margin-left:4px;">manual</span> expose HTTPS in dev (ngrok),
+          <span class="tag gap" style="margin-left:4px;">manual</span> register the URL in Slack's app config,
+          <span class="tag gap" style="margin-left:4px;">manual</span> implement HMAC signature verification,
+          <span class="tag gap" style="margin-left:4px;">manual</span> de-dupe replays.<br>
+          <em>(This is exactly the friction your brainstorm targets.)</em>
+        </div>
+      </div>
+      <div class="lane">
+        <div class="who">5 · Local test</div>
+        <div class="what">
+          Two options:
+          <ul style="margin:6px 0 0; padding-left:18px; font-size:13.5px;">
+            <li><strong>Unit-test your tools</strong> against a mock Slack client. Vitest + <span class="mono">@boringos/agent</span>'s test dispatcher. No Slack needed.</li>
+            <li><strong>Run a dev BoringOS host.</strong> <span class="mono">pnpm dev</span> in the framework repo (embedded Postgres boots automatically). Set <span class="mono">HEBBS_DEV_MODULES=true</span> to accept unsigned bundles. Pack with <span class="mono">pnpm exec pack-hebbsmod</span>, drop the file on the Apps screen, install for your dev tenant, watch logs.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="lane">
+        <div class="who">6 · Ship</div>
+        <div class="what">Bump <span class="mono">version</span> in <span class="mono">module.json</span>. Re-pack. Sign with <span class="mono">npx sign-hebbsmod</span> if shipping to a production host. Upload via admin UI or <span class="mono">POST /api/admin/modules/upload</span>. The framework persists every version in <span class="mono">module_packages</span> so tenants pin to specific versions.</div>
+      </div>
+    </div>
+
+    <div class="callout">
+      <strong>What this means for testability:</strong> a contributor
+      can run the entire framework locally with one command, build their
+      Module as a <span class="mono">.hebbsmod</span>, and exercise the full
+      install → tool dispatch → uninstall loop without any cloud
+      dependencies. The friction is concentrated in step 4 — receiving
+      provider events. That's the gap the brainstorm is sizing up.
+    </div>
+  </section>
+
+
+  <!-- ─── 6 · what's still rough ─── -->
+  <section>
+    <h2><span class="num">6</span>Where the friction lives today</h2>
+    <p class="section-lede">
+      The pieces above mostly work for one-way "module calls provider"
+      flows. Inbound provider events are where the abstraction stops
+      pulling its weight. Concrete pain points:
+    </p>
+
+    <div class="pain-list">
+      <div class="pain">
+        <span class="label">1</span>
+        <p><strong>HTTPS exposure in dev.</strong> Slack, Google, Stripe etc. all push to public URLs. Each contributor has to run ngrok / Cloudflare Tunnel / similar themselves. The framework doesn't help.</p>
+      </div>
+      <div class="pain">
+        <span class="label">2</span>
+        <p><strong>Provider-side registration is manual.</strong> Module author has to log into Slack's developer console (or Google's Cloud Console) and paste a URL. Re-doing this per dev / staging / prod environment is per-environment friction.</p>
+      </div>
+      <div class="pain">
+        <span class="label">3</span>
+        <p><strong>Webhook lifecycle is the Module's problem.</strong> Google Calendar channels expire after 7 days; you need a cron job to renew them. The framework provides no helper.</p>
+      </div>
+      <div class="pain">
+        <span class="label">4</span>
+        <p><strong>Signature verification is repeated per Module.</strong> Slack HMAC, Stripe HMAC, GitHub HMAC — each Module reimplements the same dance with the same per-tenant secrets. The framework's <span class="mono">webhooks[].verify</span> is a hook, not a helper.</p>
+      </div>
+      <div class="pain">
+        <span class="label">5</span>
+        <p><strong>No push path for the Google connector.</strong> The shipping <span class="mono">connector-google</span> + <span class="mono">google</span> Module exposes pull-only tools (<span class="mono">list_events</span>, <span class="mono">list_emails</span>). EA had to write polling tools because there was no way to subscribe to push notifications via the framework.</p>
+      </div>
+      <div class="pain">
+        <span class="label">6</span>
+        <p><strong>EventBus is in-process only.</strong> The framework's <span class="mono">ConnectorEvent</span> bus is fine for "Slack module → CRM module" routing inside one host, but it doesn't help the "Slack → BoringOS" direction. That's exactly the inbound-event problem.</p>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ─── 7 · summary ─── -->
+  <section>
+    <h2><span class="num">7</span>One-line summaries to remember</h2>
+    <table class="compare">
+      <tbody>
+        <tr>
+          <td style="width: 110px;"><span class="tag mod">Module</span></td>
+          <td>The universal component. Agent-facing. Tools, skills, schema, UI, lifecycle, webhooks, OAuth. Three roles (connector / module / hybrid) — same shape.</td>
+        </tr>
+        <tr>
+          <td><span class="tag plg">Plugin</span></td>
+          <td>Lightweight cousin. Cron jobs + inbound webhooks + KV state. No agent surface. Use when there's no agent involvement at all.</td>
+        </tr>
+        <tr>
+          <td><span class="tag con">Connector</span></td>
+          <td>Overloaded word. Either an OAuth grant row, an npm client package, or a Module with <span class="mono">kind:"connector"</span>. Disambiguate before designing.</td>
+        </tr>
+        <tr>
+          <td><span class="tag gap">The gap</span></td>
+          <td>Inbound provider events. No unified primitive for "wake my module when something happens at the provider." Module authors handle HTTPS exposure, provider registration, channel renewal, signature verification, and replay protection themselves.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+</main>
+
+<footer>
+  Architecture explainer · BoringOS · executive-assistant brainstorm
+</footer>
+
+</body>
+</html>
