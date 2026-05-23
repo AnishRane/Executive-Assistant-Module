@@ -24,11 +24,22 @@ conflict-resolve-issue.json
 module.v[0-9]*.json
 new-v[0-9.]*.json
 
-# Internal scratch directory (HTML mockups, brainstorm notes, debug investigations)
-docs/
+# Internal scratch inside docs/ — only docs/DESIGN.md, docs/OPERATIONS.md,
+# docs/ROADMAP.md are public. Everything else under docs/ is workspace-only
+# (brainstorm notes, HTML mockups, debug investigations).
+docs/_brainstorm/
+docs/*.html
+docs/.test-report.json
+docs/generate_test_report.mjs
+docs/categorization-design.md
+docs/conflict-detection-investigation.md
+docs/ui_refactor_design.md
 
-# Internal planning docs (kept out of the public release)
-DESIGN.md
-OPERATIONS.md
-PHASE_PLAN.md
-ROADMAP.md
+# Internal planning doc kept out of public release.
+/PHASE_PLAN.md
+
+# Root-level versions of docs (moved to docs/ in v0.1.0). Prevent
+# accidental re-add at root.
+/DESIGN.md
+/OPERATIONS.md
+/ROADMAP.md
