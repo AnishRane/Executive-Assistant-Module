@@ -20,7 +20,7 @@
 import { z } from "@boringos/module-sdk";
 import type { Tool, ToolContext, ToolResult } from "@boringos/module-sdk";
 import { invoke } from "@boringos/agent";
-import { and, asc, desc, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { snapshots } from "../schema/snapshots.js";
 import { meetings } from "../schema/meetings.js";
 import { oooWindows } from "../schema/ooo_windows.js";
@@ -372,8 +372,21 @@ export function createComposeTools(deps: EaDeps): Tool[] {
           .where(
             and(
               eq(meetings.tenantId, ctx.tenantId),
-              // include if (any of today) OR (future within window)
-              sql`(${meetings.startsAt} BETWEEN ${todayStart} AND ${todayEnd}) OR (${meetings.startsAt} > ${now} AND ${meetings.startsAt} <= ${windowEnd})`,
+              // Include if any of today (past/in-progress/future) OR future within `days`.
+              // v0.1.6 (broken) used a raw `sql` template that passed Date objects
+              // directly; the postgres adapter rejected them with "Received an instance
+              // of Date". v0.1.7 — use Drizzle's `or`/`gte`/`lte` helpers which
+              // serialize Date to ISO timestamps correctly.
+              or(
+                and(
+                  gte(meetings.startsAt, todayStart),
+                  lte(meetings.startsAt, todayEnd),
+                ),
+                and(
+                  gte(meetings.startsAt, now),
+                  lte(meetings.startsAt, windowEnd),
+                ),
+              )!,
               isNull(meetings.brief),
             ),
           )

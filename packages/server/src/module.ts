@@ -141,7 +141,7 @@ export const createExecutiveAssistantModule: ModuleFactory = (factoryDeps) => {
   const module: Module = {
     id: "executive-assistant",
     name: "Executive Assistant",
-    version: "0.1.6",
+    version: "0.1.7",
     description:
       "A daily dossier composed from calendar and email. Watches for travel, meetings, and the context that surrounds them.",
     defaultInstall: false,
