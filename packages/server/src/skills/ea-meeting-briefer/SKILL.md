@@ -93,6 +93,32 @@ curl -X POST "$BORINGOS_CALLBACK_URL/api/tools/framework.tasks.patch" \
   -d '{"taskId": "TASK_ID", "status": "done"}'
 ```
 
+## If `meetings.set_brief` returns `not_found`
+
+The task is referencing a meeting that no longer exists in the database (this happens if the meeting was deleted or if the task survived an EA module reinstall while the meeting did not). DO NOT loop on retry; the meeting will never appear.
+
+Abandon the task cleanly:
+
+1. Post a one-line comment explaining what happened:
+
+```
+curl -X POST "$BORINGOS_CALLBACK_URL/api/tools/framework.comments.post" \
+  -H "Authorization: Bearer $BORINGOS_CALLBACK_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"taskId": "TASK_ID", "body": "Stale task. Meeting not found in database. Abandoned."}'
+```
+
+2. Patch the task to done:
+
+```
+curl -X POST "$BORINGOS_CALLBACK_URL/api/tools/framework.tasks.patch" \
+  -H "Authorization: Bearer $BORINGOS_CALLBACK_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"taskId": "TASK_ID", "status": "done"}'
+```
+
+End the run. The framework will move on to the next task in the queue. This is the only time you can mark a task done without `meetings.set_brief` succeeding: when the meeting itself does not exist.
+
 ## Important Rules
 
 - **Execute the curls.** Every numbered step is a real tool call. Do not write them as text instead of running them. Drafting the brief in your head is fine; you must still call `meetings.set_brief` to save it.

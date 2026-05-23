@@ -341,6 +341,13 @@ async function scrubEaSeeds(db: PostgresJsDatabase, tenantId: string) {
     WHERE tenant_id = ${tenantId} AND name IN (${namesIn})
   `);
 
+  // v0.1.3 — delete cost_events by BOTH run_id and agent_id.
+  // Previously only the run_id path ran, which left cost_events rows
+  // referencing the EA agent's id directly (cost_events.agent_id has
+  // a FK with no CASCADE). That made the subsequent DELETE FROM
+  // agents fail under transaction, silently aborting the scrub and
+  // letting old agents survive — which produced N duplicate agents
+  // per role across reinstalls in v0.1.2 and earlier.
   await db.execute(sql`
     DELETE FROM cost_events
     WHERE run_id IN (
@@ -349,6 +356,13 @@ async function scrubEaSeeds(db: PostgresJsDatabase, tenantId: string) {
         SELECT id FROM agents
         WHERE tenant_id = ${tenantId} AND role IN (${rolesIn})
       )
+    )
+  `);
+  await db.execute(sql`
+    DELETE FROM cost_events
+    WHERE agent_id IN (
+      SELECT id FROM agents
+      WHERE tenant_id = ${tenantId} AND role IN (${rolesIn})
     )
   `);
   await db.execute(sql`
@@ -365,20 +379,58 @@ async function scrubEaSeeds(db: PostgresJsDatabase, tenantId: string) {
       WHERE tenant_id = ${tenantId} AND role IN (${rolesIn})
     )
   `);
+
+  // v0.1.3 — sweep EA-originated tasks too. Without this, tasks
+  // referencing now-deleted meeting UUIDs survive a reinstall and
+  // get picked up by the briefer on next wake, leading to looped
+  // "Meeting not found" failures. EA owns these origin_kinds; safe
+  // to drop them entirely. Dependent rows (task_comments,
+  // task_attachments, task_labels, task_read_states,
+  // task_work_products) have no CASCADE so we delete them first.
+  const eaOriginKinds = sql`('agent-morning-compose', 'agent-compose-refresh', 'agent-meeting-brief', 'agent-classify-pending', 'agent-weekly-reflection', 'agent-travel-agent')`;
+
   await db.execute(sql`
-    UPDATE tasks SET assignee_agent_id = NULL
-    WHERE assignee_agent_id IN (
-      SELECT id FROM agents
-      WHERE tenant_id = ${tenantId} AND role IN (${rolesIn})
+    DELETE FROM task_comments
+    WHERE task_id IN (
+      SELECT id FROM tasks
+      WHERE tenant_id = ${tenantId} AND origin_kind IN ${eaOriginKinds}
     )
   `);
   await db.execute(sql`
-    UPDATE tasks SET created_by_agent_id = NULL
-    WHERE created_by_agent_id IN (
-      SELECT id FROM agents
-      WHERE tenant_id = ${tenantId} AND role IN (${rolesIn})
+    DELETE FROM task_attachments
+    WHERE task_id IN (
+      SELECT id FROM tasks
+      WHERE tenant_id = ${tenantId} AND origin_kind IN ${eaOriginKinds}
     )
   `);
+  await db.execute(sql`
+    DELETE FROM task_labels
+    WHERE task_id IN (
+      SELECT id FROM tasks
+      WHERE tenant_id = ${tenantId} AND origin_kind IN ${eaOriginKinds}
+    )
+  `);
+  await db.execute(sql`
+    DELETE FROM task_read_states
+    WHERE task_id IN (
+      SELECT id FROM tasks
+      WHERE tenant_id = ${tenantId} AND origin_kind IN ${eaOriginKinds}
+    )
+  `);
+  await db.execute(sql`
+    DELETE FROM task_work_products
+    WHERE task_id IN (
+      SELECT id FROM tasks
+      WHERE tenant_id = ${tenantId} AND origin_kind IN ${eaOriginKinds}
+    )
+  `);
+  await db.execute(sql`
+    DELETE FROM tasks
+    WHERE tenant_id = ${tenantId} AND origin_kind IN ${eaOriginKinds}
+  `);
+
+  // Finally drop the agents. With cost_events + agent_runs +
+  // wakeups + tasks all cleared above, the FK chain is satisfied.
   await db.execute(sql`
     DELETE FROM agents
     WHERE tenant_id = ${tenantId} AND role IN (${rolesIn})
@@ -428,6 +480,30 @@ async function seedAgent(
   name: string,
   role: string,
 ): Promise<string> {
+  // v0.1.3 — idempotent seed. Reinstalls were producing N duplicate
+  // agents per role because this used to be an unconditional INSERT.
+  // Now: if an agent with this (tenant_id, role) already exists, reuse
+  // it. Workflows + routines seeded later in onInstall reference the
+  // returned agentId, so re-using the existing one keeps everything
+  // pointing at one canonical agent across reinstalls.
+  const existing = (await db.execute(sql`
+    SELECT id FROM agents
+    WHERE tenant_id = ${tenantId} AND role = ${role}
+    ORDER BY created_at ASC
+    LIMIT 1
+  `)) as unknown as Array<{ id: string }>;
+  if (existing[0]?.id) {
+    // Refresh updated_at + name in case the install hook changed
+    // either since the prior install. Status stays whatever it was
+    // (idle / paused / error) so we don't clobber a user pause.
+    await db.execute(sql`
+      UPDATE agents
+      SET name = ${name}, runtime_id = ${runtimeId}, reports_to = ${rootAgentId}, updated_at = now()
+      WHERE id = ${existing[0].id}
+    `);
+    return existing[0].id;
+  }
+
   const agentId = randomUUID();
   await db.execute(sql`
     INSERT INTO agents (id, tenant_id, name, role, status, instructions, runtime_id, reports_to, created_at, updated_at)
