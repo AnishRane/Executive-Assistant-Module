@@ -14,18 +14,27 @@ export interface LaterListProps {
   items: FocusCardData[];
   /** Render no card at all when empty (vs an empty card with header). */
   hideWhenEmpty?: boolean;
+  /** v0.1.1: override the "Later today · N more" header. */
+  label?: string;
+  /** v0.1.1: dim the rows (used for "Earlier today" past items). */
+  muted?: boolean;
 }
 
-export function LaterList({ items, hideWhenEmpty = false }: LaterListProps) {
+export function LaterList({
+  items,
+  hideWhenEmpty = false,
+  label,
+  muted = false,
+}: LaterListProps) {
   if (items.length === 0 && hideWhenEmpty) return null;
 
   return (
     <div className="bg-[var(--color-surface)] border border-[var(--color-rule)] rounded-[12px] overflow-hidden mb-3">
       <div className="px-[18px] py-3 border-b border-[var(--color-rule-soft)] flex items-center justify-between">
         <span className="text-[11px] font-semibold tracking-[0.06em] uppercase text-[var(--color-muted)]">
-          {items.length > 0
+          {label ?? (items.length > 0
             ? `Later today · ${items.length} more`
-            : "Later today"}
+            : "Later today")}
         </span>
       </div>
 
@@ -35,14 +44,18 @@ export function LaterList({ items, hideWhenEmpty = false }: LaterListProps) {
         </div>
       ) : (
         items.map((item) => (
-          <LaterRow key={`${item.kind}-${item.refId}-${item.startsAt}`} item={item} />
+          <LaterRow
+            key={`${item.kind}-${item.refId}-${item.startsAt}`}
+            item={item}
+            muted={muted}
+          />
         ))
       )}
     </div>
   );
 }
 
-function LaterRow({ item }: { item: FocusCardData }) {
+function LaterRow({ item, muted = false }: { item: FocusCardData; muted?: boolean }) {
   const time = new Date(item.startsAt).toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
@@ -68,7 +81,9 @@ function LaterRow({ item }: { item: FocusCardData }) {
   return (
     <Link
       to={href}
-      className="grid grid-cols-[70px_1fr_auto] gap-4 items-center px-[18px] py-3 border-b border-[var(--color-rule-soft)] last:border-b-0 hover:bg-[var(--color-paper-warm)] transition-colors"
+      className={`grid grid-cols-[70px_1fr_auto] gap-4 items-center px-[18px] py-3 border-b border-[var(--color-rule-soft)] last:border-b-0 hover:bg-[var(--color-paper-warm)] transition-colors ${
+        muted ? "opacity-60" : ""
+      }`}
     >
       <div className="font-mono text-[13px] text-[var(--color-ink)] leading-tight">
         {time}

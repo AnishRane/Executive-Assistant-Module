@@ -455,33 +455,67 @@ export function Today() {
     meetingsWithConflict,
   ]);
 
-  // Partition into Now / Next / Later
-  const { now, next, later } = useMemo(() => {
+  // Partition into Earlier / Now / Next / Later.
+  //
+  // v0.1.1 fix: the prior logic treated "first item with start >= now"
+  // as the Now slot, which mis-bucketed currently-in-progress items
+  // (start <= now < end) and hid past items entirely. New rules:
+  //   - past  = endsAt < now (or startsAt < now when endsAt is null)
+  //   - now   = startsAt <= now < endsAt  (in-progress, exactly one)
+  //   - next  = first future item (start > now)
+  //   - later = remaining future items
+  // For non-today views, fall back to a simpler "first future item"
+  // approach so picking tomorrow still surfaces a Now/Next pair.
+  const { past, now, next, later } = useMemo(() => {
     const sorted = [...items].sort(
       (a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime(),
     );
     const nowMs = Date.now();
-    let nowIdx = -1;
-    for (let i = 0; i < sorted.length; i++) {
-      const startMs = new Date(sorted[i]!.startsAt).getTime();
-      // "Now" = currently happening (started within last 30 min and not yet ended)
-      // OR the next upcoming item (closest in the future).
-      if (startMs >= nowMs) {
-        nowIdx = i;
-        break;
+
+    if (!isViewingToday) {
+      // Future day view: no "past", first item is Now, rest follow.
+      if (sorted.length === 0) return { past: [], now: null, next: null, later: [] };
+      return {
+        past: [],
+        now: sorted[0] ?? null,
+        next: sorted[1] ?? null,
+        later: sorted.slice(2),
+      };
+    }
+
+    const past: FocusCardData[] = [];
+    let nowItem: FocusCardData | null = null;
+    const future: FocusCardData[] = [];
+
+    for (const item of sorted) {
+      const startMs = new Date(item.startsAt).getTime();
+      const endMs = item.endsAt ? new Date(item.endsAt).getTime() : null;
+
+      if (endMs !== null && endMs <= nowMs) {
+        past.push(item);
+        continue;
       }
+      if (startMs <= nowMs && (endMs === null || endMs > nowMs)) {
+        // In-progress. There can technically be multiple overlapping
+        // items, but only one gets the "Now" slot (highest priority by
+        // start time, which the sort already gives us). The rest fall
+        // into the future bucket so they still appear in Up Next /
+        // Later.
+        if (!nowItem) {
+          nowItem = item;
+          continue;
+        }
+      }
+      future.push(item);
     }
-    // If everything is past, leave nowIdx = -1.
-    // Only promote the first item to "Now" for future days — past days
-    // show all items as a plain list with no Now/Next split.
-    if (nowIdx === -1 && sorted.length > 0 && selectedDate > today) {
-      nowIdx = 0;
-    }
-    const now = nowIdx >= 0 ? sorted[nowIdx]! : null;
-    const next = nowIdx >= 0 && nowIdx + 1 < sorted.length ? sorted[nowIdx + 1]! : null;
-    const later = nowIdx >= 0 ? sorted.slice(nowIdx + 2) : sorted;
-    return { now, next, later };
-  }, [items, isViewingToday, selectedDate, today]);
+
+    return {
+      past,
+      now: nowItem,
+      next: future[0] ?? null,
+      later: future.slice(1),
+    };
+  }, [items, isViewingToday]);
 
   // Stable primitives for the brief-generation effects. Any
   // meeting-table row (meeting / event / task / untagged) is eligible
@@ -618,6 +652,17 @@ export function Today() {
           />
         ) : (
           <>
+            {/* v0.1.1: past items earlier today, rendered as a compact
+                LaterList variant so the user can see what already
+                happened without it dominating the page. */}
+            {past.length > 0 && (
+              <LaterList
+                items={past}
+                hideWhenEmpty
+                label={`Earlier today · ${past.length}`}
+                muted
+              />
+            )}
             {now && (
               <FocusCard
                 variant="now"
