@@ -95,7 +95,9 @@ curl -X POST "$BORINGOS_CALLBACK_URL/api/tools/framework.tasks.patch" \
 
 ## Important Rules
 
-- **Execute the curls.** Every numbered step is a real tool call. Do not write them as text instead of running them.
+- **Execute the curls.** Every numbered step is a real tool call. Do not write them as text instead of running them. Drafting the brief in your head is fine; you must still call `meetings.set_brief` to save it.
+- **The brief lives in the tool call, not in your output.** Your final reply does NOT need to contain the brief prose. Pass the prose as the `brief` field of `meetings.set_brief`, then move on. If the brief text shows up only in your chat output and never in a tool call, you have failed the task.
+- **Steps 3, 5 (mark done) are mandatory finishers.** A run that ends without `meetings.set_brief` AND `framework.tasks.patch(status: "done")` is incomplete. Do them.
 - **One meeting per task.** Process the meeting in the task description, then stop. The framework will wake you again on the next per-meeting task.
 - **No fabrication.** Never infer an attendee's role, title, department, or relationship from their email or domain. If memory has nothing on them, write "no prior context on file" and move on.
 - **No em dashes.** The character `—` (U+2014) is forbidden anywhere in the brief you write. Use periods, commas, parentheses, semicolons, or colons. En dash `–` is allowed only for time ranges (e.g. `10:00–11:00`).
@@ -108,13 +110,56 @@ curl -X POST "$BORINGOS_CALLBACK_URL/api/tools/framework.tasks.patch" \
 
 ## Red flags. STOP and check yourself.
 
-If you find yourself doing any of the following, you are NOT executing correctly:
+Each of these is an outright failure. If you catch yourself doing it, STOP and run the curl instead:
 
 - Writing curl commands as text instead of running them via the Bash tool.
 - Producing a "plan" or "analysis" of what you would do next.
+- **Writing "Next steps that would normally execute" or "Now I will" or "I would call" or any similar narration.** That phrase IS the failure mode. Run the tool call. Do not narrate it.
+- Posting the brief prose in your chat reply instead of (or in addition to) calling `meetings.set_brief`. The brief must land via the tool call. The chat reply is for nothing.
 - Asking for permission, confirmation, or clearance to proceed.
 - Passing placeholder strings like `"MEETING_UUID"` in real tool calls.
 - Stopping after step 1 without running steps 2 through 5.
+- Ending the run with the task still in `todo` because you "ran out of steps to describe".
 - **Using the em dash character `—` anywhere in the brief.** Replace it with a period, comma, semicolon, parenthesis, or colon BEFORE calling `meetings.set_brief`.
 
 You have permission to use tools. The framework gave it to you via `--dangerously-skip-permissions`. The task description gave you the meetingId. Run every curl, pass the real meetingId, end at step 5 with the task marked done.
+
+## A worked example of correct behavior
+
+Task says: meetingId `abc-123`. You should DO this, not narrate it:
+
+```
+[Bash] curl -X POST .../meetings.get -d '{"meetingId":"abc-123"}'
+→ response: { description: "Quarterly review", attendees: [...], ... }
+
+[Bash] curl -X POST .../memory.recall -d '{"query":"user.voice"}'
+→ response: not_found  (so skip per-attendee recalls)
+
+(internally compose 80-word brief prose)
+
+[Bash] curl -X POST .../meetings.set_brief -d '{"meetingId":"abc-123", "brief":"Eighty words here, no em dashes, no fabricated attendee roles."}'
+→ response: { ok: true, ... }
+
+[Bash] curl -X POST .../framework.comments.post -d '{"taskId":"<from-task-context>", "body":"Brief composed."}'
+→ response: ok
+
+[Bash] curl -X POST .../framework.tasks.patch -d '{"taskId":"<from-task-context>", "status":"done"}'
+→ response: ok
+
+Run ends. Brief prose lives in the database row. Your chat reply can be empty or a single sentence summary.
+```
+
+Wrong (the failure mode we saw before this rule was added):
+
+```
+"Based on the meeting details, here's the prep brief:
+
+BRIEF: [80-word prose]
+
+Next steps that would normally execute:
+- Call meetings.set_brief with this brief text
+- Post completion comment
+- Mark task done"
+```
+
+The wrong version SAYS the brief but never SAVES it. Saying is not doing. The task stays in `todo`. The brief never appears in the meeting drawer.
