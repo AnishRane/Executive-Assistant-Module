@@ -59,6 +59,7 @@ import { LocaleChip } from "../components/LocaleChip.js";
 import { NamePromptBanner } from "../components/NamePromptBanner.js";
 import { callTool } from "../lib/api.js";
 import { bootstrapTimezone } from "../lib/tzBootstrap.js";
+import { reverseGeocode } from "../lib/reverseGeocode.js";
 import { formatDateLong, todayDateString } from "../lib/format.js";
 
 export function Today() {
@@ -265,9 +266,36 @@ export function Today() {
       async (pos) => {
         const { latitude, longitude } = pos.coords;
         const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        const locationLabel = tz.includes("/")
-          ? tz.split("/").pop()!.replace(/_/g, " ")
-          : tz;
+
+        // v0.1.8 — try a real reverse geocode first ("Ambarnath,
+        // Maharashtra"). If Nominatim is unreachable / rate-limited /
+        // returns no usable address fields, fall back to the full
+        // broadscoped IANA timezone string (e.g. "Asia/Calcutta") so
+        // the UI signals "this is the timezone, not a place".
+        let locationLabel: string;
+        try {
+          const geo = await reverseGeocode(latitude, longitude);
+          locationLabel = geo.label;
+        } catch {
+          locationLabel = tz; // full IANA, e.g. "Asia/Calcutta"
+        }
+
+        // Also persist the precise label so the LocaleChip / Day Brief
+        // narrative pick it up on the next render. This overrides the
+        // tzBootstrap-derived label that was written earlier.
+        try {
+          await callTool<
+            { key: string; value: unknown },
+            unknown
+          >("executive-assistant.preferences.set", {
+            key: "current_location",
+            value: { label: locationLabel, latitude, longitude, tz },
+          });
+          await queryClient.invalidateQueries({ queryKey: ["ea", "preferences"] });
+        } catch {
+          // non-fatal — weather call below still uses the right label
+        }
+
         try {
           await callTool<
             {

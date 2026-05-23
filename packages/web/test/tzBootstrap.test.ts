@@ -41,9 +41,12 @@ describe("bootstrapTimezone", () => {
     expect(result.tz).toBe("America/New_York");
     const rememberCall = callTool.mock.calls[1]!;
     expect(rememberCall[0]).toBe("executive-assistant.preferences.set");
+    // v0.1.8 — bootstrap-time label is the FULL IANA tz so the UI is
+    // honest that no real reverse-geocoded place is known yet. The
+    // geolocation effect upgrades this to "Suburb, State" later.
     expect(rememberCall[1]).toMatchObject({
       key: "current_location",
-      value: { tz: "America/New_York", label: "New York" },
+      value: { tz: "America/New_York", label: "America/New_York" },
     });
   });
 
@@ -57,9 +60,10 @@ describe("bootstrapTimezone", () => {
     const result = await bootstrapTimezone(callTool, () => "Asia/Kolkata");
 
     expect(result.wrote).toBe("current+home");
+    // v0.1.8 — bootstrap label is the full IANA tz.
     expect(callTool.mock.calls[3]![1]).toMatchObject({
       key: "home_location",
-      value: { tz: "Asia/Kolkata", label: "Kolkata" },
+      value: { tz: "Asia/Kolkata", label: "Asia/Kolkata" },
     });
   });
 
@@ -71,7 +75,14 @@ describe("bootstrapTimezone", () => {
     expect(callTool).not.toHaveBeenCalled();
   });
 
-  it("derives a human label from the IANA city portion (Asia/Kolkata → Kolkata)", async () => {
+  it("keeps the full IANA tz as the bootstrap-time label (v0.1.8)", async () => {
+    // v0.1.8 — labelFromIana now returns the full IANA tz string
+    // rather than the trailing segment. Rationale: the trailing
+    // segment looked like a city name but had no geographic truth
+    // (e.g. "Asia/Calcutta" → "Calcutta" while the user was actually
+    // in Mumbai). The full IANA tz signals "we only know the
+    // timezone right now" until the geolocation effect upgrades it
+    // via reverse geocoding ("Ambarnath, Maharashtra").
     const callTool = vi
       .fn()
       .mockResolvedValueOnce({ data: { value: null } })
@@ -79,7 +90,6 @@ describe("bootstrapTimezone", () => {
       .mockResolvedValueOnce({ data: { value: null } })
       .mockResolvedValueOnce({ data: {} });
     await bootstrapTimezone(callTool, () => "America/Los_Angeles");
-    // Underscores converted to spaces
-    expect(callTool.mock.calls[1]![1].value.label).toBe("Los Angeles");
+    expect(callTool.mock.calls[1]![1].value.label).toBe("America/Los_Angeles");
   });
 });

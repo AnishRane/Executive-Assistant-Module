@@ -30,8 +30,15 @@ function defaultGetBrowserTz(): string | null {
 }
 
 function labelFromIana(iana: string): string {
-  if (!iana.includes("/")) return iana;
-  return iana.split("/").pop()!.replace(/_/g, " ");
+  // v0.1.8 — keep the FULL IANA tz as the bootstrap-time label
+  // (e.g. "Asia/Calcutta") so the UI is honest about what's known
+  // until the geolocation effect upgrades it to a real place name
+  // ("Ambarnath, Maharashtra") via reverse geocoding. The old
+  // `split("/").pop()` derivation gave "Calcutta" which looked like
+  // a city but was just a stripped tz segment with no geographic
+  // truth behind it. Showing "Asia/Calcutta" honestly signals
+  // "we only know the timezone right now".
+  return iana;
 }
 
 export async function bootstrapTimezone(
