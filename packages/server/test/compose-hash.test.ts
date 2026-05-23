@@ -129,6 +129,92 @@ describe("hashOf", () => {
 
 // ─── compose.day_context tests (v0.4.54) ─────────────────────────
 
+// ─── compose.write_meeting_brief tests (v0.1.4) ───────────────────
+
+describe("compose.write_meeting_brief", () => {
+  beforeEach(() => {
+    invokeMock.mockReset();
+  });
+
+  it("saves the brief AND fires comments.post + tasks.patch atomically", async () => {
+    // Mock the underlying invokes for comments.post + tasks.patch.
+    invokeMock.mockImplementation((_deps, name) => {
+      const ok = (data: unknown) => Promise.resolve({ ok: true, result: { data } });
+      if (name === "framework.comments.post") return ok({ id: "comment-1" });
+      if (name === "framework.tasks.patch") return ok({ id: "task-1" });
+      return Promise.resolve({ ok: false, error: { code: "not_found", message: `no mock for ${name}`, retryable: false } });
+    });
+
+    // Mock db.update().set(...).where(...).returning() chain for set_brief,
+    // and db.execute() for the task lookup.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const updateChain: any = {
+      set: () => updateChain,
+      where: () => updateChain,
+      returning: async () => [{ id: "00000000-0000-0000-0000-0000000000a1", brief: "Eighty word brief here." }],
+    };
+    const handle = {
+      db: {
+        update: () => updateChain,
+        execute: async () =>
+          [{ id: "00000000-0000-0000-0000-000000000bbb" }] as unknown,
+      },
+      calls: { select: 0, insertAwaited: 0, insertValues: [], execute: 0 },
+    };
+
+    const tool = getTool(
+      createComposeTools(makeDeps(handle)),
+      "compose.write_meeting_brief",
+    );
+    const r = await tool.handler(
+      {
+        meetingId: "00000000-0000-0000-0000-0000000000a1",
+        brief: "Eighty word brief here.",
+      },
+      ctx(),
+    );
+
+    expect(r.ok).toBe(true);
+    // Two invokes fired: comments.post + tasks.patch
+    expect(invokeMock).toHaveBeenCalledTimes(2);
+    expect(invokeMock.mock.calls[0]?.[1]).toBe("framework.comments.post");
+    expect(invokeMock.mock.calls[1]?.[1]).toBe("framework.tasks.patch");
+  });
+
+  it("returns not_found when the meeting doesn't exist", async () => {
+    // Mock update().returning() returns empty array
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const updateChain: any = {
+      set: () => updateChain,
+      where: () => updateChain,
+      returning: async () => [],
+    };
+    const handle = {
+      db: {
+        update: () => updateChain,
+        execute: async () => [] as unknown,
+      },
+      calls: { select: 0, insertAwaited: 0, insertValues: [], execute: 0 },
+    };
+
+    const tool = getTool(
+      createComposeTools(makeDeps(handle)),
+      "compose.write_meeting_brief",
+    );
+    const r = await tool.handler(
+      {
+        meetingId: "00000000-0000-0000-0000-0000000000ff",
+        brief: "Brief.",
+      },
+      ctx(),
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error.code).toBe("not_found");
+    // Should not fire comment/patch if meeting wasn't found
+    expect(invokeMock).not.toHaveBeenCalled();
+  });
+});
+
 describe("compose.day_context", () => {
   beforeEach(() => {
     invokeMock.mockReset();

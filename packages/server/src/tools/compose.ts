@@ -711,5 +711,116 @@ There are ${untaggedCount} untagged items right now.`;
     },
   };
 
-  return [maybeCreateTask, prepareMeetingBriefs, daySignal, classifyPending, dayContext];
+  // v0.1.4 — atomic finalize for the meeting-briefer agent.
+  // Bundles set_brief + comments.post + tasks.patch(done) into one
+  // server call. The briefer's SKILL.md procedure ends with this
+  // single call instead of three separate ones — eliminates the
+  // haiku planning-mode trap that kept narrating the tail of the
+  // procedure ("Now saving the brief and marking the task complete")
+  // without actually emitting the tool_use blocks. Atomicity here
+  // means the agent has nothing to narrate: either it called this
+  // tool or it didn't.
+  const writeMeetingBrief: Tool = {
+    name: "compose.write_meeting_brief",
+    description:
+      "Atomically finalize a meeting prep brief. Saves the brief on the meeting, posts a completion comment to the corresponding agent-meeting-brief task (looked up by meetingId via origin_id), and marks that task done. Use this as the LAST step of the briefer agent's procedure instead of calling meetings.set_brief + framework.comments.post + framework.tasks.patch separately. Pass { meetingId, brief, comment? } — taskId is resolved internally.",
+    inputs: z.object({
+      meetingId: z.string().uuid(),
+      brief: z.string().min(1),
+      comment: z.string().optional(),
+    }),
+    async handler(
+      input: { meetingId: string; brief: string; comment?: string },
+      ctx: ToolContext,
+    ): Promise<ToolResult> {
+      // 1. Save the brief with tenant guard. Update returning gives us
+      //    the row so we can confirm it actually existed.
+      const updated = await deps.db
+        .update(meetings)
+        .set({ brief: input.brief, updatedAt: new Date() })
+        .where(
+          and(eq(meetings.id, input.meetingId), eq(meetings.tenantId, ctx.tenantId)),
+        )
+        .returning({ id: meetings.id });
+      if (!updated.length) {
+        return {
+          ok: false,
+          error: {
+            code: "not_found",
+            message: "Meeting not found for this tenant. Brief not saved.",
+            retryable: false,
+          },
+        };
+      }
+
+      // 2. Look up the briefer task for this meeting. originId pattern
+      //    set by compose.prepare_meeting_briefs is `brief:${meetingId}`.
+      const taskRows = (await deps.db.execute(sql`
+        SELECT id FROM tasks
+        WHERE tenant_id = ${ctx.tenantId}
+          AND origin_kind = 'agent-meeting-brief'
+          AND origin_id = ${`brief:${input.meetingId}`}
+          AND status != 'done'
+        ORDER BY created_at DESC
+        LIMIT 1
+      `)) as unknown as Array<{ id: string }>;
+      const taskId = taskRows[0]?.id ?? null;
+
+      // 3. If we found a matching task, finalize it: post comment +
+      //    patch done. If no task (e.g. brief refreshed from UI button
+      //    rather than a task), skip silently — the brief is already
+      //    saved which is the primary contract.
+      if (taskId && deps.toolRegistry) {
+        const invokeDeps = {
+          registry: deps.toolRegistry,
+          db: deps.db as unknown as never,
+        };
+        const ctxInt: ToolContext = { ...ctx, invokedBy: "internal" };
+        try {
+          await invoke<unknown, unknown>(
+            invokeDeps,
+            "framework.comments.post",
+            {
+              taskId,
+              body:
+                input.comment ??
+                `Brief composed (${input.brief.length} chars).`,
+            },
+            ctxInt,
+          );
+        } catch (err) {
+          phase(
+            `write_meeting_brief: comment failed (non-fatal): ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+        try {
+          await invoke<unknown, unknown>(
+            invokeDeps,
+            "framework.tasks.patch",
+            { taskId, status: "done" },
+            ctxInt,
+          );
+        } catch (err) {
+          phase(
+            `write_meeting_brief: tasks.patch failed (non-fatal): ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+      }
+
+      return {
+        ok: true,
+        result: {
+          data: {
+            saved: true,
+            meetingId: input.meetingId,
+            briefChars: input.brief.length,
+            taskFinalized: !!taskId,
+            taskId,
+          },
+        },
+      };
+    },
+  };
+
+  return [maybeCreateTask, prepareMeetingBriefs, daySignal, classifyPending, dayContext, writeMeetingBrief];
 }
