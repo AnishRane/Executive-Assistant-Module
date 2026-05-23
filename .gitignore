@@ -9,3 +9,26 @@ coverage/
 .env
 .env.local
 .env.*.local
+
+# Build incremental caches
+*.tsbuildinfo
+
+# Debug captures / scratch
+*.har
+*.har.json
+ea-network.txt.har
+report-*.html
+conflict-resolve-issue.json
+
+# Version-history scratch artifacts
+module.v[0-9]*.json
+new-v[0-9.]*.json
+
+# Internal scratch directory (HTML mockups, brainstorm notes, debug investigations)
+docs/
+
+# Internal planning docs (kept out of the public release)
+DESIGN.md
+OPERATIONS.md
+PHASE_PLAN.md
+ROADMAP.md
